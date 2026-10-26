@@ -1,0 +1,32 @@
+{
+  "version": "6.9",
+  "hitCount": 5,
+  "nextCursorMark": "AoE2",
+  "resultList": {
+    "result": [
+      {
+        "id": "90000001",
+        "source": "MED",
+        "pmid": "90000001",
+        "title": "Metformin versus placebo on HbA1c in adults with type 2 diabetes: a randomised trial.",
+        "pubYear": "2020"
+      },
+      {
+        "source": "MED",
+        "title": "A result with no id that must be skipped, not crash the import"
+      },
+      {
+        "id": "90000004",
+        "source": "MED",
+        "pmid": "90000004",
+        "title": "Metformin bei Typ-2-Diabetes: eine Beobachtungsstudie",
+        "authorString": "Schmidt G.",
+        "journalInfo": {"journal": {"title": "Beispiel Medizin"}},
+        "firstPublicationDate": "2018-11-20",
+        "abstractText": "Wir untersuchten Erwachsene mit Typ-2-Diabetes.",
+        "language": "ger",
+        "pubTypeList": {"pubType": ["Journal Article", "English Abstract"]}
+      }
+    ]
+  }
+}
