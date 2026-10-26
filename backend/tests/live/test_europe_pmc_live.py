@@ -53,6 +53,19 @@ def test_synonym_flag_changes_or_keeps_hit_count():
     assert expanded >= plain
 
 
+def test_title_abstract_scope_narrows_results():
+    adapter = EuropePMCAdapter()
+    everywhere = adapter.count(spec())
+    scoped = adapter.count(spec(title_abstract_only=True))
+    print(f"hits anywhere incl. full text={everywhere}, titles/abstracts only={scoped}")
+    assert 0 < scoped < everywhere
+    preview = adapter.preview(spec(title_abstract_only=True), n=10)
+    assert preview.hit_count == scoped and preview.records
+    for record in preview.records:
+        text = f"{record.title} {record.abstract or ''}".lower()
+        assert "metformin" in text, f"{record.source_record_id} has no 'metformin' in title/abstract"
+
+
 def test_known_ids_are_skipped_on_rerun():
     adapter = EuropePMCAdapter()
     first = adapter.search(spec(), cap=20)

@@ -34,6 +34,11 @@ class QuerySpec(BaseModel):
     # Europe PMC expands queries with MeSH synonyms when this is on. We always
     # send the flag explicitly so results never depend on the API's default.
     expand_synonyms: bool = False
+    # Match terms only in titles and abstracts. Europe PMC otherwise also
+    # searches open-access full text, which inflates hits with papers that only
+    # mention a term in passing. PubMed never searches full text, so its adapter
+    # ignores this flag.
+    title_abstract_only: bool = False
 
     @field_validator("expression")
     @classmethod

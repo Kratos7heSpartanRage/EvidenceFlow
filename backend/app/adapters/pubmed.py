@@ -11,6 +11,10 @@ NCBI rules this adapter follows:
 - Any UI showing PubMed content must display NCBI's disclaimer; see
   NCBI_POLICY_URL.
 
+QuerySpec.title_abstract_only is ignored: PubMed searches citations and
+abstracts (and indexing terms), never full text. Use [tiab] tags in the
+expression for strict title/abstract matching.
+
 Incremental fetch: ESearch returns only PMIDs. EFetch is called only for PMIDs
 that are not already stored, so re-running a search downloads nothing it has.
 """

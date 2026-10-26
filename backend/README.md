@@ -41,6 +41,10 @@ Shared behaviour (`app/adapters/base.py`):
 
 ### Europe PMC (`europe_pmc.py`)
 
+- `QuerySpec.title_abstract_only` scopes the expression with `TITLE_ABS:(...)`, so
+  terms must appear in the title or abstract. Without it, Europe PMC also
+  searches open-access full text (e.g. 13,790 vs 788 PubMed hits for the same
+  query). PubMed ignores the flag because it never searches full text.
 - Date range is applied as `FIRST_PDATE:[from TO to]`; an open end uses
   1800-01-01 or 2999-12-31.
 - MeSH synonym expansion is controlled by `QuerySpec.expand_synonyms` (default

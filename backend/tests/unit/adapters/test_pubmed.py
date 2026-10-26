@@ -146,6 +146,11 @@ class TestSearch:
             "3000/12/31",
         )
 
+    def test_title_abstract_flag_does_not_change_pubmed_term(self, no_wait_limiter):
+        t = FakeTransport(json_response(EMPTY))
+        adapter(t, no_wait_limiter).count(spec(title_abstract_only=True))
+        assert t.calls[0]["params"]["term"] == "metformin AND placebo"
+
     def test_no_dates_sends_no_date_params(self, no_wait_limiter):
         t = FakeTransport(json_response(EMPTY))
         adapter(t, no_wait_limiter).count(spec())
