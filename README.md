@@ -2,7 +2,21 @@
 
 **An auditable workspace for systematic literature reviews.** EvidenceFlow is designed to help researchers move from a structured review question to a searchable, deduplicated, screened, and exportable evidence set while keeping reviewer decisions visible and traceable.
 
-> **Project status:** Planning stage. This repository currently contains the project blueprint in `Start.txt`; the application, API, database, and setup scripts described below are planned and are not yet implemented. Commands and endpoints in this README will be updated as working code is added.
+> **Project status:** Backend engine baseline implemented. Member C's deduplication, screening, PICO engines, repository interfaces, and offline tests are available. The application UI, HTTP API, source adapters, and database integration are still pending. The original planning blueprint is held locally as `Start.txt` and is not included in this repository.
+
+## Member C implementation
+
+See the [integration guide](docs/MEMBER_C.md) for contracts, persistence requirements, and handoff steps, and the [methods contribution](docs/MEMBER_C_REPORT.md) for report material.
+
+With Python 3.11 or newer, run the offline checks and synthetic demo from the repository root:
+
+```powershell
+cd backend
+python -m unittest discover -s tests -v
+python -m examples.member_c_demo
+```
+
+These modules use the Python standard library; no API key or dependency installation is required. The services accept repository interfaces, with a test double used for verification. A real database adapter and end-to-end application still need to be connected.
 
 ## Why EvidenceFlow
 
@@ -56,7 +70,7 @@ The intended service layout keeps the UI, API, source adapters, processing logic
 
 ## Repository status and roadmap
 
-At this planning stage, the project blueprint describes these milestones:
+The project blueprint describes these milestones:
 
 - Establish the review question, data model, API contracts, and end-to-end import flow.
 - Implement the core workflow: source search, import, deduplication, screening, PICO review, and CSV export.
@@ -67,7 +81,7 @@ The actual repository contents and completed milestones should be reflected here
 
 ## Running the project
 
-There is no runnable application or installation procedure in the current repository snapshot. The blueprint proposes a development setup based on `make` targets, but those targets and their prerequisites have not been created yet. Once the application is implemented, this section should include verified steps for prerequisites, configuration, database setup, starting the app, and running checks.
+The engine checks and offline demonstration can be run using the commands above. There is no application server or UI yet. The blueprint proposes a development setup based on `make` targets, but those targets have not been created. Application prerequisites, configuration, database setup, and startup commands will be documented as those components are implemented.
 
 ## Design principles
 
@@ -84,7 +98,7 @@ The blueprint calls for a transparent, rules-based baseline. Such matching and s
 
 ## Contributing
 
-Contribution guidance, development commands, and code ownership rules will be added with the application code. Until then, `Start.txt` is the planning blueprint and should be read as a proposal rather than a description of a working product.
+Read the [Member C integration guide](docs/MEMBER_C.md) before changing engine contracts or connecting persistence. Each engine returns machine suggestions; reviewer decisions and annotations must remain separate. Keep tests offline and preserve versioned input keys when adding database adapters.
 
 ## License
 
