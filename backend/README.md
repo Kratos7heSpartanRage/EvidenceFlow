@@ -1,6 +1,6 @@
 # EvidenceFlow backend
 
-Status: literature-source adapters only (Member B). The API, database and
+Status: literature-source adapters for Europe PMC and PubMed (Member B). The API, database and
 processing engines are added by other workstreams.
 
 ## Setup and tests
@@ -10,7 +10,7 @@ cd backend
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 python -m pytest            # offline: unit + local-HTTP integration tests
-EVIDENCEFLOW_LIVE=1 python -m pytest tests/live -v   # hits the real Europe PMC API
+EVIDENCEFLOW_LIVE=1 NCBI_EMAIL=you@example.org python -m pytest tests/live -v   # real APIs
 ruff check . && ruff format --check .
 ```
 
@@ -55,3 +55,24 @@ Shared behaviour (`app/adapters/base.py`):
 
 To record real responses for comparison:
 `python scripts/record_fixtures.py "metformin AND placebo" --from 2015-01-01 --to 2025-12-31`
+
+### PubMed (`pubmed.py`)
+
+- ESearch (JSON) returns PMIDs; EFetch (XML) is called **only for PMIDs not
+  already stored**, in batches of 200. This is true incremental fetch.
+- Every request sends `tool` and `email`. Configure with environment variables
+  (see `.env.example`): `NCBI_EMAIL` (needed), `NCBI_TOOL` (default
+  `evidenceflow`), `NCBI_API_KEY` (optional).
+- Rate limit: 2.8 requests/s without a key, 9/s with one (NCBI allows 3 and 10).
+- Date range uses publication date (`datetype=pdat`, `mindate`/`maxdate`).
+- ESearch can only page through the first 10,000 results, so the cap is limited
+  to 10,000.
+- Parsing: structured abstracts are joined as `LABEL: text`; inline markup such
+  as `<i>` or `<sub>` is flattened; year falls back to `MedlineDate`
+  ("2019 Jan-Feb"); DOI comes from `ArticleIdList`, else `ELocationID`;
+  `source_record_id` is the PMID; book records are skipped with a warning.
+- A query PubMed rejects (HTTP 200 with an `ERROR` field) becomes `bad_query`.
+- **Any screen showing PubMed content must show NCBI's disclaimer** and link to
+  `NCBI_POLICY_URL`.
+
+`get_adapter("europe_pmc" | "pubmed")` returns a configured adapter.

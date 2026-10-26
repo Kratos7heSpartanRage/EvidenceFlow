@@ -1,7 +1,7 @@
 """Shared plumbing for literature-source adapters.
 
 Uses only the standard library for HTTP so adapters run anywhere without extra
-dependencies. Every outbound request goes through `request_json`, which applies
+dependencies. Every outbound request goes through `request_bytes`, which applies
 the per-source rate limit, a timeout, retries with backoff on 429/5xx/timeouts,
 and maps failures to a typed `SourceError`.
 """
@@ -67,7 +67,7 @@ class UrllibTransport:
     def get(self, url: str, params: Mapping[str, Any], timeout: float) -> HttpResponse:
         full_url = f"{url}?{urllib.parse.urlencode(params)}" if params else url
         request = urllib.request.Request(  # noqa: S310 (fixed https hosts)
-            full_url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"}
+            full_url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"}
         )
         try:
             with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
@@ -113,7 +113,17 @@ RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 MAX_RETRY_AFTER_SECONDS = 30.0
 
 
-def request_json(
+def request_json(**kwargs: Any) -> Any:
+    """GET a JSON document. Same arguments and behaviour as `request_bytes`."""
+    source = kwargs["source"]
+    body = request_bytes(**kwargs)
+    try:
+        return json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SourceError("malformed_response", source, f"invalid JSON: {exc}", 200) from exc
+
+
+def request_bytes(
     *,
     transport: HttpTransport,
     limiter: RateLimiter,
@@ -124,8 +134,8 @@ def request_json(
     max_retries: int = 3,
     backoff_base: float = 0.5,
     sleep: Callable[[float], None] = time.sleep,
-) -> Any:
-    """GET a JSON document with rate limiting, retries and typed errors."""
+) -> bytes:
+    """GET a document with rate limiting, retries and typed errors."""
     last_error: SourceError | None = None
     for attempt in range(max_retries + 1):
         if attempt > 0:
@@ -142,10 +152,7 @@ def request_json(
             continue
 
         if response.status == 200:
-            try:
-                return json.loads(response.body.decode("utf-8"))
-            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-                raise SourceError("malformed_response", source, f"invalid JSON: {exc}", 200) from exc
+            return response.body
 
         detail = _short_body(response.body)
         if response.status in RETRYABLE_STATUS:
