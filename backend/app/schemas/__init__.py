@@ -16,6 +16,13 @@ from backend.app.schemas.contracts import (
     ScoredPair,
     ScreeningDecisionType,
 )
+from backend.app.schemas.dedup import (
+    DuplicatePairResponse,
+    PairDecisionIn,
+    PairDecisionResponse,
+    PairDecisionResult,
+    RecordSummary,
+)
 from backend.app.schemas.query import (
     QueryCreate,
     QueryDiffResponse,
@@ -46,11 +53,15 @@ __all__ = [
     "CriterionResponse",
     "DecisionOrigin",
     "DuplicateDecisionType",
+    "DuplicatePairResponse",
     "DuplicateTier",
     "ExtractedSpan",
     "HeuristicSuggestion",
     "LiteratureSource",
     "PICOElement",
+    "PairDecisionIn",
+    "PairDecisionResponse",
+    "PairDecisionResult",
     "PipelineRunResponse",
     "QueryCreate",
     "QueryDiffResponse",
@@ -60,6 +71,7 @@ __all__ = [
     "QuerySpec",
     "QuerySpecSchema",
     "RecordIn",
+    "RecordSummary",
     "ReviewCounts",
     "ReviewCreate",
     "ReviewListItem",

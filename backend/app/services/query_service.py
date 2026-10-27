@@ -245,11 +245,22 @@ class QueryService:
                     self.db.add(qr)
 
             query.imported_count = (query.imported_count or 0) + imported_count
+            self.db.commit()
+
+            # Execute clustering and capture snapshot for zero-API revert (Scenario E)
+            from backend.app.services.deduplication_service import DeduplicationService
+
+            dedup_service = DeduplicationService(self.db)
+            dedup_service.cluster_records(query.review_id)
+            dedup_service.capture_group_snapshot(query.id)
+
             run.status = "completed"
             run.progress_percent = 100
             run.completed_at = utc_now()
             steps[0].status = "completed"
             steps[0].completed_at = utc_now()
+            steps[1].status = "completed"
+            steps[1].completed_at = utc_now()
             self.db.commit()
 
         self.audit.log(
