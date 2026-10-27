@@ -6,6 +6,10 @@ No API key or registration is needed.
 Behaviour worth knowing:
 - MeSH synonym expansion: we always send `synonym` explicitly from
   QuerySpec.expand_synonyms, so hit counts never depend on the API default.
+- QuerySpec.title_abstract_only scopes the expression with TITLE_ABS:(...), so
+  terms must appear in the title or abstract rather than anywhere in the full
+  text. Expressions that already use their own field prefixes (e.g. AUTH:)
+  should leave this off.
 - Date range is applied as FIRST_PDATE:[from TO to] (first publication date).
   An open end uses a far-past or far-future bound.
 - Europe PMC returns full records in search pages, so "incremental" here means
@@ -40,8 +44,12 @@ OPEN_END = "2999-12-31"
 
 
 def build_query(spec: QuerySpec) -> str:
-    """Combine the researcher's expression with the date filter."""
+    """Combine the researcher's expression with the scope and date filters."""
     query = f"({spec.expression})"
+    if spec.title_abstract_only:
+        # Field-scope the whole Boolean expression; a field prefix applies to
+        # every term inside the parentheses.
+        query = f"TITLE_ABS:{query}"
     if spec.date_from or spec.date_to:
         start = spec.date_from.isoformat() if spec.date_from else OPEN_START
         end = spec.date_to.isoformat() if spec.date_to else OPEN_END

@@ -41,6 +41,21 @@ class TestQuerySpecAndBuilder:
         assert "FIRST_PDATE:[1800-01-01 TO 2020-06-30]" in build_query(spec(date_to=date(2020, 6, 30)))
         assert "FIRST_PDATE:[2020-01-01 TO 2999-12-31]" in build_query(spec(date_from=date(2020, 1, 1)))
 
+    def test_title_abstract_scope_wraps_expression(self):
+        q = build_query(spec(title_abstract_only=True))
+        assert q == "TITLE_ABS:(metformin AND placebo)"
+
+    def test_title_abstract_scope_with_dates(self):
+        q = build_query(
+            spec(title_abstract_only=True, date_from=date(2015, 1, 1), date_to=date(2025, 12, 31))
+        )
+        assert q == "TITLE_ABS:(metformin AND placebo) AND (FIRST_PDATE:[2015-01-01 TO 2025-12-31])"
+
+    def test_title_abstract_scope_is_sent_on_search(self, no_wait_limiter):
+        t = FakeTransport(json_response(EMPTY))
+        adapter(t, no_wait_limiter).search(spec(title_abstract_only=True), cap=10)
+        assert t.calls[0]["params"]["query"].startswith("TITLE_ABS:(")
+
     def test_blank_expression_rejected(self):
         with pytest.raises(ValidationError):
             spec(expression="   ")
