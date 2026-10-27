@@ -60,7 +60,10 @@ class ReviewRepository:
         # Unique studies: Count dedup groups, plus any ungrouped records
         grouped_count = (
             self.db.query(func.count(DedupGroup.id))
-            .filter(DedupGroup.review_id == review_id)
+            .filter(
+                DedupGroup.review_id == review_id,
+                DedupGroup.members.any(Record.is_hidden.is_(False)),
+            )
             .scalar()
             or 0
         )

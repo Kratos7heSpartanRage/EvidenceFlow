@@ -2,7 +2,7 @@
 
 **An auditable workspace for systematic literature reviews.** EvidenceFlow is designed to help researchers move from a structured review question to a searchable, deduplicated, screened, and exportable evidence set while keeping reviewer decisions visible and traceable.
 
-> **Project status:** Integrated backend baseline. Europe PMC/PubMed adapters, database models and migrations, review/query APIs, and C's processing engines are present. The frontend and complete background processing/review loop still need implementation. See the [integration analysis](docs/INTEGRATION_ANALYSIS.md) for verified behavior and remaining work.
+> **Project status:** Integrated backend baseline. Europe PMC/PubMed adapters, database models and migrations, review/query/duplicate-review APIs, and C's processing engines are present. The frontend and complete background processing/review loop still need implementation. See the [integration analysis](docs/INTEGRATION_ANALYSIS.md) for verified behavior and remaining work.
 
 ## Run the backend
 
@@ -17,7 +17,7 @@ Copy-Item .env.example .env
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
 
-Open [API documentation](http://127.0.0.1:8000/docs) or [health](http://127.0.0.1:8000/api/health). Source previews use the live adapters. The import endpoint currently returns `501 PIPELINE_NOT_READY` until the background runner is connected; direct service imports stop at `awaiting_processing` rather than claiming all processing has completed.
+Open [API documentation](http://127.0.0.1:8000/docs) or [health](http://127.0.0.1:8000/api/health). Source previews use the live adapters. The import endpoint currently returns `501 PIPELINE_NOT_READY` until the background runner is connected; direct service imports run candidate scoring, database grouping, and snapshot capture, then stop at `awaiting_processing` (50%) while screening and PICO remain pending.
 
 Run offline checks from the repository root:
 

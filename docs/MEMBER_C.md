@@ -103,7 +103,7 @@ Render overlapping spans with an interval-aware highlighter or per-label view.
 
 ## Persistence handoff for Member A
 
-The database foundations, review/query repositories, and routes are now present. The three engine services still accept typed repository interfaces that need real SQLAlchemy adapters. The engine-service repository implementation currently present is a test double. The `to_engine_record()` mapper connects the persisted record shape to C's input; machine-result persistence and decision reconciliation remain pending.
+The database foundations, review/query repositories, and routes are now present. The three engine services still accept typed repository interfaces that need real SQLAlchemy adapters. The engine-service repository implementation currently present is a test double. The `to_engine_record()` mapper connects the persisted record shape to C's input; database duplicate review is now implemented separately in `deduplication_db_service.py`, using the shared pure grouping routine. Screening/PICO repositories, versioned machine evaluation storage, and group screening-decision reconciliation remain pending.
 
 1. Implement the `DeduplicationRepository`, `ScreeningRepository`, and
    `PicoRepository` Protocol methods against a repository scoped to one review.
@@ -190,10 +190,14 @@ future incremental adapter; such an adapter must invalidate old evaluations for
 changed records and preserve valid results for untouched records. The service
 does not yet implement incremental pair persistence.
 
-Rejected direct edges are removed. If a third record still connects the pair,
-the service returns a conflict and a connecting path. It preserves that graph
-for a reviewer to inspect rather than silently choosing which other edge to
-remove. The caller must keep open conflicting groups out of export.
+Rejected direct edges are removed. Both the pure service and database workflow use
+`group_with_rejections()` (dedup-rules-2): human-confirmed edges are considered
+first, then automatic edges in stable ID order. An edge that would transitively
+bridge a current rejection is held back; the records remain in different groups
+and an unresolved conflict is surfaced. The pure service also returns a path in
+the proposed graph for inspection. Reviewers may change earlier decisions; the
+database workflow uses the latest verdict, preserving the complete history.
+
 
 Representative preference is a supplied pin, then a nonempty abstract, valid DOI,
 PubMed source, and lowest record ID. Multiple pins are resolved by the remaining

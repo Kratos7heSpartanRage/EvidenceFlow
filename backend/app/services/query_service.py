@@ -274,9 +274,40 @@ class QueryService:
                     self.db.add(qr)
 
             query.imported_count = (query.imported_count or 0) + imported_count
-            run.status = "awaiting_processing"
+            # Fetch/store is a completed step. Commit it before deduplication,
+            # so a later failure preserves the imported records and provenance.
+            steps[0].status = "completed"
+            steps[0].completed_at = utc_now()
             run.progress_percent = 25
             run.current_step = "deduplicate"
+            self.db.commit()
+            from app.services.deduplication_db_service import DatabaseDeduplicationService
+
+            try:
+                dedup_service = DatabaseDeduplicationService(self.db)
+                steps[1].status = "running"
+                steps[1].started_at = utc_now()
+                dedup_service.score_current_records(query.review_id)
+                dedup_service.cluster_records(query.review_id, commit=False)
+                dedup_service.capture_group_snapshot(query.id, commit=False)
+                steps[1].status = "completed"
+                steps[1].completed_at = utc_now()
+            except Exception as exc:
+                self.db.rollback()
+                run.status = "failed"
+                run.error_message = (
+                    "Deduplication failed; imported records remain available for retry."
+                )
+                run.current_step = "deduplicate"
+                run.completed_at = utc_now()
+                steps[1].status = "failed"
+                steps[1].completed_at = utc_now()
+                steps[1].message = run.error_message
+                self.db.commit()
+                raise AppError(run.error_message, code="DEDUPLICATION_FAILED") from exc
+            run.status = "awaiting_processing"
+            run.progress_percent = 50
+            run.current_step = "screen_heuristics"
             steps[0].status = "completed"
             steps[0].completed_at = utc_now()
             self.db.commit()

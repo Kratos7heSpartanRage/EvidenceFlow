@@ -10,7 +10,7 @@ from itertools import combinations
 from .normalize import normalize_author, normalize_doi, normalize_pmid, normalize_title
 from .types import PairResult, RecordId, RecordLite, record_id_key
 
-ALGO_VERSION = "dedup-rules-1"
+ALGO_VERSION = "dedup-rules-2"
 
 
 def _conference(record: RecordLite) -> bool:
@@ -174,6 +174,64 @@ def group_key(record_ids: Iterable[RecordId]) -> str:
     if not members:
         raise ValueError("A group cannot be empty")
     return hashlib.sha1(",".join(map(str, members)).encode("utf-8")).hexdigest()
+
+
+def group_with_rejections(
+    record_ids: Iterable[RecordId],
+    edges: Iterable[tuple[RecordId, RecordId]],
+    rejected_edges: Iterable[tuple[RecordId, RecordId]],
+    *,
+    preferred_edges: Iterable[tuple[RecordId, RecordId]] = (),
+) -> tuple[list[set[RecordId]], list[tuple[RecordId, RecordId]]]:
+    """Deterministically partition a proposed graph with human cannot-links.
+
+    Human-confirmed preferred edges are considered first. An edge that would
+    bridge a rejection is held back and the violated rejection is returned for
+    conflict review. A rejection is never silently overridden or resolved.
+    """
+    ids = set(record_ids)
+
+    def pair_key(pair):
+        return record_id_key(pair[0]), record_id_key(pair[1])
+
+    def canonical(pair):
+        return tuple(sorted(pair, key=record_id_key))
+
+    edges = {canonical(pair) for pair in edges}
+    rejected = {canonical(pair) for pair in rejected_edges}
+    preferred = {canonical(pair) for pair in preferred_edges}
+    group(ids, edges | rejected | preferred)  # validates all endpoints and self edges
+    root = {record_id: record_id for record_id in ids}
+    members = {record_id: {record_id} for record_id in ids}
+
+    def find(record_id):
+        while root[record_id] != record_id:
+            record_id = root[record_id]
+        return record_id
+
+    blocked = set()
+    for a, b in sorted(edges - rejected, key=lambda pair: (pair not in preferred, pair_key(pair))):
+        left, right = find(a), find(b)
+        if left == right:
+            continue
+        violations = {
+            pair
+            for pair in rejected
+            if (
+                (pair[0] in members[left] and pair[1] in members[right])
+                or (pair[1] in members[left] and pair[0] in members[right])
+            )
+        }
+        if violations:
+            blocked.update(violations)
+            continue
+        keep, discard = sorted((left, right), key=record_id_key)
+        root[discard] = keep
+        members[keep].update(members[discard])
+    components = {}
+    for record_id in sorted(ids, key=record_id_key):
+        components.setdefault(find(record_id), set()).add(record_id)
+    return list(components.values()), sorted(blocked, key=pair_key)
 
 
 def representative(records: Iterable[RecordLite], pinned_ids: Iterable[RecordId] = ()) -> RecordId:

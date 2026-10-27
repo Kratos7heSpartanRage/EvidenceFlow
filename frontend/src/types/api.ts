@@ -53,3 +53,58 @@ export interface QueryPreview {
 export interface ApiError {
   error: { code: string; message: string; details: Record<string, unknown> };
 }
+
+
+export type PairDecisionTarget =
+  | { duplicate_pair_id: string; record_a_id?: never; record_b_id?: never }
+  | { duplicate_pair_id?: never; record_a_id: string; record_b_id: string };
+
+export type PairDecisionInput = PairDecisionTarget & {
+  decision: "confirm" | "reject";
+  reviewer_name?: string;
+  note?: string | null;
+};
+
+export interface RecordSummary {
+  id: string;
+  review_id: string;
+  source: string;
+  source_record_id: string;
+  title: string;
+  authors: string[];
+  journal?: string | null;
+  publication_year?: number | null;
+  doi?: string | null;
+  pmid?: string | null;
+}
+
+export interface PairDecision {
+  id: string;
+  duplicate_pair_id: string;
+  decision: "confirm" | "reject";
+  reviewer_name: string;
+  note?: string | null;
+  created_at: string;
+}
+
+export interface DuplicatePair {
+  id: string;
+  review_id: string;
+  record_a_id: string;
+  record_b_id: string;
+  record_a: RecordSummary | null;
+  record_b: RecordSummary | null;
+  similarity_score: number;
+  tier: string;
+  match_reasons: string[];
+  status: string;
+  created_at: string;
+  decisions: PairDecision[];
+}
+
+export interface PairDecisionResult {
+  status: "recorded";
+  decision_id: string;
+  duplicate_pair_id: string;
+  affected_group_id: string | null;
+}

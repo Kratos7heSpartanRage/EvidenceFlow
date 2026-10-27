@@ -141,6 +141,10 @@ class DeduplicationService:
             else:
                 edges.discard(pair)
                 rejected.add(pair)
+        preferred = {pair for pair, decision in overrides.items() if decision == "confirm"}
+        components, blocked = dedup.group_with_rejections(
+            by_id, edges, rejected, preferred_edges=preferred
+        )
         pins = set(pinned_record_ids)
         snapshots = tuple(
             GroupSnapshot(
@@ -148,7 +152,7 @@ class DeduplicationService:
                 tuple(sorted(members, key=record_id_key)),
                 dedup.representative((by_id[member] for member in members), pins),
             )
-            for members in dedup.group(by_id, edges)
+            for members in components
         )
         adjacency = {record_id: set() for record_id in by_id}
         for a_id, b_id in edges:
@@ -156,7 +160,7 @@ class DeduplicationService:
             adjacency[b_id].add(a_id)
         conflicts = []
         for a_id, b_id in sorted(
-            rejected, key=lambda pair: (record_id_key(pair[0]), record_id_key(pair[1]))
+            blocked, key=lambda pair: (record_id_key(pair[0]), record_id_key(pair[1]))
         ):
             path = _path(adjacency, a_id, b_id)
             if path:
