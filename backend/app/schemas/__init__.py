@@ -78,3 +78,19 @@ __all__ = [
     "SearchResult",
     "SourceName",
 ]
+
+from .dedup import (
+    DuplicatePairResponse,
+    PairDecisionIn,
+    PairDecisionResponse,
+    PairDecisionResult,
+    RecordSummary,
+)
+
+__all__ += [
+    "DuplicatePairResponse",
+    "PairDecisionIn",
+    "PairDecisionResponse",
+    "PairDecisionResult",
+    "RecordSummary",
+]

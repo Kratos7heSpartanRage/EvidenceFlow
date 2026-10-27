@@ -193,7 +193,7 @@ def test_b_adapter_record_persists_and_reaches_c_engines_with_uuid(context):
     assert screen(lite, [criterion], terms).decision == "include"
     assert any(span.status == "suggested" for span in extract_pico(lite.abstract, terms))
     run = db.get(PipelineRun, result.run_id)
-    assert run.progress_percent == 25 and run.completed_at is None
-    assert [step.status for step in run.steps] == ["completed", "queued", "queued", "queued"]
+    assert run.progress_percent == 50 and run.completed_at is None
+    assert [step.status for step in run.steps] == ["completed", "completed", "queued", "queued"]
     assert service.import_query(query.id, records_in=[record_in]).run_id == run.id
     assert db.query(Record).filter_by(review_id=review.id).count() == 1

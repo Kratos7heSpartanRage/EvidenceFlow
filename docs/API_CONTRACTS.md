@@ -1,4 +1,28 @@
-> **Implementation status (27 October 2026):** The document below includes the target API. Current routes implement health, reviews/criteria, query create/list/get/preview/diff, and run details. Manual review, conflict resolution, export, and revert are not implemented. The background import route returns `501 PIPELINE_NOT_READY`; a direct supplied-record service import returns `awaiting_processing` with downstream steps queued. See `INTEGRATION_ANALYSIS.md`.
+## PR #8 implementation update
+
+The duplicate-pair GET and pair-decision POST routes are now implemented. Both
+operate within the selected review. `RecordSummary.authors` is a list of display
+name strings, including when stored authors are structured objects.
+
+`PairDecisionIn` accepts exactly one target form: `duplicate_pair_id`, or both
+`record_a_id` and `record_b_id`. Targets must exist in the review; self pairs and
+incomplete/ambiguous targets return 422. Identical repeated verdicts are no-ops.
+The latest verdict controls grouping, with earlier rows preserved. Database
+verdict, regrouping, and audit writes form one transaction.
+
+The direct-record import helper now runs real candidate scoring and deduplication,
+records immutable first-import query snapshots, and pauses at 50% before
+screening/PICO. A dedup failure marks the run failed while preserving committed
+record/provenance rows for an idempotent retry. The background import route still
+returns `501 PIPELINE_NOT_READY` until that runner is connected.
+
+Machine pair evidence is immutable in the current schema. Changing an existing
+pending evaluation returns `409 PAIR_EVALUATION_CHANGED` until versioned evaluation
+storage is implemented. Historical group rows are retained and are not counted
+as active studies when they have no visible members. The revert endpoint remains
+unimplemented; snapshot capture alone is not a complete revert workflow.
+
+> **Implementation status (27 October 2026):** The document below includes the target API. Current routes implement health, reviews/criteria, query create/list/get/preview/diff, and run details. Screening/PICO review, conflict resolution, export, and revert are not implemented. Duplicate-pair review is implemented in the update above. The background import route returns `501 PIPELINE_NOT_READY`; a direct supplied-record service import returns `awaiting_processing` with downstream steps queued. See `INTEGRATION_ANALYSIS.md`.
 
 ## Shared source and engine contract alignment
 
