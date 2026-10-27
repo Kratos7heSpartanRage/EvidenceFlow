@@ -1,0 +1,83 @@
+<?xml version="1.0" ?>
+<!DOCTYPE PubmedArticleSet PUBLIC "-//NLM//DTD PubMedArticle, 1st January 2025//EN" "https://dtd.nlm.nih.gov/ncbi/pubmed/out/pubmed_250101.dtd">
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE" Owner="NLM">
+      <PMID Version="1">90000001</PMID>
+      <Article PubModel="Print-Electronic">
+        <Journal>
+          <JournalIssue CitedMedium="Internet">
+            <Volume>12</Volume>
+            <Issue>4</Issue>
+            <PubDate><Year>2020</Year><Month>Mar</Month></PubDate>
+          </JournalIssue>
+          <Title>Journal of Example Endocrinology</Title>
+        </Journal>
+        <ArticleTitle>Effect of <i>metformin</i> versus placebo on HbA<sub>1c</sub> in adults with type 2 diabetes.</ArticleTitle>
+        <Pagination><MedlinePgn>101-110</MedlinePgn></Pagination>
+        <ELocationID EIdType="doi" ValidYN="Y">10.1000/example.2020.001</ELocationID>
+        <Abstract>
+          <AbstractText Label="BACKGROUND" NlmCategory="BACKGROUND">Metformin is first-line therapy.</AbstractText>
+          <AbstractText Label="METHODS" NlmCategory="METHODS">Adults with type 2 diabetes received metformin or placebo for 12 weeks.</AbstractText>
+          <AbstractText Label="RESULTS" NlmCategory="RESULTS">The primary outcome was change in HbA<sub>1c</sub>.</AbstractText>
+        </Abstract>
+        <AuthorList CompleteYN="Y">
+          <Author ValidYN="Y"><LastName>Rao</LastName><ForeName>Anita</ForeName><Initials>A</Initials></Author>
+          <Author ValidYN="Y"><LastName>Kim</LastName><ForeName>Byung</ForeName><Initials>B</Initials></Author>
+          <Author ValidYN="Y"><CollectiveName>Example Diabetes Trial Group</CollectiveName></Author>
+        </AuthorList>
+        <Language>eng</Language>
+        <PublicationTypeList>
+          <PublicationType UI="D016449">Randomized Controlled Trial</PublicationType>
+          <PublicationType UI="D016428">Journal Article</PublicationType>
+        </PublicationTypeList>
+        <ArticleDate DateType="Electronic"><Year>2020</Year><Month>02</Month><Day>28</Day></ArticleDate>
+      </Article>
+      <MeshHeadingList>
+        <MeshHeading><DescriptorName UI="D006801" MajorTopicYN="N">Humans</DescriptorName></MeshHeading>
+        <MeshHeading><DescriptorName UI="D008687" MajorTopicYN="Y">Metformin</DescriptorName></MeshHeading>
+      </MeshHeadingList>
+      <KeywordList Owner="NOTNLM"><Keyword MajorTopicYN="N">HbA1c</Keyword></KeywordList>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">90000001</ArticleId>
+        <ArticleId IdType="doi">10.1000/EXAMPLE.2020.001</ArticleId>
+        <ArticleId IdType="pmc">PMC9000001</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE" Owner="NLM">
+      <PMID Version="1">90000002</PMID>
+      <Article PubModel="Print">
+        <Journal>
+          <JournalIssue CitedMedium="Print">
+            <PubDate><MedlineDate>2019 Jan-Feb</MedlineDate></PubDate>
+          </JournalIssue>
+          <Title>Beispiel Medizin</Title>
+        </Journal>
+        <ArticleTitle>[Metformin in type 2 diabetes: an observational study].</ArticleTitle>
+        <VernacularTitle>Metformin bei Typ-2-Diabetes: eine Beobachtungsstudie.</VernacularTitle>
+        <ELocationID EIdType="doi" ValidYN="Y">10.1000/beispiel.2019.002</ELocationID>
+        <AuthorList><Author><LastName>Schmidt</LastName><Initials>G</Initials></Author></AuthorList>
+        <Language>ger</Language>
+        <PublicationTypeList><PublicationType>Journal Article</PublicationType><PublicationType>English Abstract</PublicationType></PublicationTypeList>
+      </Article>
+    </MedlineCitation>
+    <PubmedData><ArticleIdList><ArticleId IdType="pubmed">90000002</ArticleId></ArticleIdList></PubmedData>
+  </PubmedArticle>
+  <PubmedArticle>
+    <MedlineCitation Status="In-Data-Review" Owner="NLM">
+      <PMID Version="1">90000003</PMID>
+      <Article PubModel="Electronic">
+        <Journal><JournalIssue><PubDate><Year>2022</Year></PubDate></JournalIssue><Title>Example Journal</Title></Journal>
+        <ArticleTitle></ArticleTitle>
+        <Language>eng</Language>
+      </Article>
+    </MedlineCitation>
+  </PubmedArticle>
+  <PubmedBookArticle>
+    <BookDocument><PMID Version="1">90000005</PMID></BookDocument>
+  </PubmedBookArticle>
+</PubmedArticleSet>

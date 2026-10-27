@@ -1,0 +1,96 @@
+"""Schemas package exposing contracts, review, query, and run DTOs."""
+
+from app.schemas.contracts import (
+    AnnotationOrigin,
+    Author,
+    ConflictStatus,
+    DecisionOrigin,
+    DuplicateDecisionType,
+    DuplicateTier,
+    ExtractedSpan,
+    HeuristicSuggestion,
+    LiteratureSource,
+    PICOElement,
+    PreviewResult,
+    QuerySpec,
+    RecordIn,
+    RunStatus,
+    ScoredPair,
+    ScreeningDecisionType,
+    SearchResult,
+    SourceName,
+)
+from app.schemas.query import (
+    QueryCreate,
+    QueryDiffResponse,
+    QueryImportResponse,
+    QueryPreviewResponse,
+    QueryResponse,
+    QuerySpecSchema,
+)
+from app.schemas.review import (
+    CriteriaVersionCreate,
+    CriteriaVersionResponse,
+    CriterionIn,
+    CriterionResponse,
+    ReviewCounts,
+    ReviewCreate,
+    ReviewListItem,
+    ReviewResponse,
+    ReviewUpdate,
+)
+from app.schemas.run import PipelineRunResponse, RunStepResponse
+
+__all__ = [
+    "AnnotationOrigin",
+    "Author",
+    "ConflictStatus",
+    "CriteriaVersionCreate",
+    "CriteriaVersionResponse",
+    "CriterionIn",
+    "CriterionResponse",
+    "DecisionOrigin",
+    "DuplicateDecisionType",
+    "DuplicateTier",
+    "ExtractedSpan",
+    "HeuristicSuggestion",
+    "LiteratureSource",
+    "PICOElement",
+    "PipelineRunResponse",
+    "PreviewResult",
+    "QueryCreate",
+    "QueryDiffResponse",
+    "QueryImportResponse",
+    "QueryPreviewResponse",
+    "QueryResponse",
+    "QuerySpec",
+    "QuerySpecSchema",
+    "RecordIn",
+    "ReviewCounts",
+    "ReviewCreate",
+    "ReviewListItem",
+    "ReviewResponse",
+    "ReviewUpdate",
+    "RunStatus",
+    "RunStepResponse",
+    "ScoredPair",
+    "ScreeningDecisionType",
+    "SearchResult",
+    "SourceName",
+]
+
+from .dedup import (
+    DuplicatePairResponse,
+    PairDecisionIn,
+    PairDecisionResponse,
+    PairDecisionResult,
+    RecordSummary,
+)
+
+__all__ += [
+    "DuplicatePairResponse",
+    "PairDecisionIn",
+    "PairDecisionResponse",
+    "PairDecisionResult",
+    "RecordSummary",
+]

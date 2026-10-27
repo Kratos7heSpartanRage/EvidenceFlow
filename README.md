@@ -2,7 +2,34 @@
 
 **An auditable workspace for systematic literature reviews.** EvidenceFlow is designed to help researchers move from a structured review question to a searchable, deduplicated, screened, and exportable evidence set while keeping reviewer decisions visible and traceable.
 
-> **Project status:** Planning stage. This repository currently contains the project blueprint in `Start.txt`; the application, API, database, and setup scripts described below are planned and are not yet implemented. Commands and endpoints in this README will be updated as working code is added.
+> **Project status:** Integrated backend baseline. Europe PMC/PubMed adapters, database models and migrations, review/query/duplicate-review APIs, and C's processing engines are present. The frontend and complete background processing/review loop still need implementation. See the [integration analysis](docs/INTEGRATION_ANALYSIS.md) for verified behavior and remaining work.
+
+## Run the backend
+
+Python 3.11 or newer is required. From the repository root in PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e "./backend[dev]"
+Copy-Item .env.example .env
+# Edit .env, including NCBI_EMAIL, before making PubMed requests.
+.\.venv\Scripts\python.exe -m alembic -c backend/alembic.ini upgrade head
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+Open [API documentation](http://127.0.0.1:8000/docs) or [health](http://127.0.0.1:8000/api/health). Source previews use the live adapters. The import endpoint currently returns `501 PIPELINE_NOT_READY` until the background runner is connected; direct service imports run candidate scoring, database grouping, and snapshot capture, then stop at `awaiting_processing` (50%) while screening and PICO remain pending.
+
+Run offline checks from the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest backend/tests -q
+.\.venv\Scripts\python.exe -m ruff check backend
+.\.venv\Scripts\python.exe -m ruff format --check backend
+```
+
+The default test suite uses synthetic/recorded fixtures, local HTTP stubs, and a temporary SQLite DB. Live tests are opt-in with `EVIDENCEFLOW_LIVE=1`. To run the synthetic engine demo, enter `backend` and run `..\.venv\Scripts\python.exe -m examples.member_c_demo`.
+
+See the [engine integration guide](docs/MEMBER_C.md), [methods contribution](docs/MEMBER_C_REPORT.md), and [combined analysis](docs/INTEGRATION_ANALYSIS.md).
 
 ## Why EvidenceFlow
 
@@ -32,7 +59,7 @@ Systematic review searches change as researchers refine their questions. Re-runn
 - Append-only audit history for reviewer actions and pipeline runs.
 - CSV export of included representative studies.
 
-These are planned capabilities from the project blueprint, not claims about the current codebase.
+These describe the full product target. The integration analysis distinguishes implemented components from the remaining application workflow.
 
 ## Data sources
 
@@ -56,7 +83,7 @@ The intended service layout keeps the UI, API, source adapters, processing logic
 
 ## Repository status and roadmap
 
-At this planning stage, the project blueprint describes these milestones:
+The project blueprint describes these milestones:
 
 - Establish the review question, data model, API contracts, and end-to-end import flow.
 - Implement the core workflow: source search, import, deduplication, screening, PICO review, and CSV export.
@@ -67,7 +94,7 @@ The actual repository contents and completed milestones should be reflected here
 
 ## Running the project
 
-There is no runnable application or installation procedure in the current repository snapshot. The blueprint proposes a development setup based on `make` targets, but those targets and their prerequisites have not been created yet. Once the application is implemented, this section should include verified steps for prerequisites, configuration, database setup, starting the app, and running checks.
+The API server, migrations, offline checks, and engine demonstration can be run using the commands above. The frontend is not yet runnable. The blueprint’s proposed `make` targets have not been created.
 
 ## Design principles
 
@@ -84,7 +111,7 @@ The blueprint calls for a transparent, rules-based baseline. Such matching and s
 
 ## Contributing
 
-Contribution guidance, development commands, and code ownership rules will be added with the application code. Until then, `Start.txt` is the planning blueprint and should be read as a proposal rather than a description of a working product.
+Read the [Member C integration guide](docs/MEMBER_C.md) before changing engine contracts or connecting persistence. Each engine returns machine suggestions; reviewer decisions and annotations must remain separate. Keep tests offline and preserve versioned input keys when adding database adapters.
 
 ## License
 

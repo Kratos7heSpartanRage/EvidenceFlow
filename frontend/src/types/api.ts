@@ -364,3 +364,72 @@ export interface RecordListResponse {
   page_size: number;
   total_pages: number;
 }
+
+/** Backend Boundary Types (Merged from origin/main) */
+export type LiteratureSource = "europe_pmc" | "pubmed";
+
+export interface Author {
+  full_name: string;
+  last_name?: string | null;
+  initials?: string | null;
+}
+
+export interface RecordIn {
+  source: LiteratureSource;
+  source_record_id: string;
+  title: string;
+  abstract?: string | null;
+  doi?: string | null;
+  pmid?: string | null;
+  pmcid?: string | null;
+  authors: Author[];
+  year?: number | null;
+  publication_date?: string | null;
+  journal?: string | null;
+  volume?: string | null;
+  issue?: string | null;
+  pages?: string | null;
+  language?: string | null;
+  pub_types: string[];
+  mesh_terms: string[];
+  keywords: string[];
+  raw: Record<string, unknown>;
+}
+
+export interface QueryPreview {
+  query_id: string;
+  estimated_hits: number;
+  sample_records: RecordIn[];
+  is_frozen: boolean;
+  warnings: string[];
+}
+
+export type PairDecisionTarget =
+  | { duplicate_pair_id: string; record_a_id?: never; record_b_id?: never }
+  | { duplicate_pair_id?: never; record_a_id: string; record_b_id: string };
+
+export type PairDecisionInput = PairDecisionTarget & {
+  decision: "confirm" | "reject";
+  reviewer_name?: string;
+  note?: string | null;
+};
+
+export interface RecordSummary {
+  id: string;
+  review_id: string;
+  source: string;
+  source_record_id: string;
+  title: string;
+  authors: string[];
+  journal?: string | null;
+  publication_year?: number | null;
+  doi?: string | null;
+  pmid?: string | null;
+}
+
+export interface PairDecisionResult {
+  status: "recorded";
+  decision_id: string;
+  duplicate_pair_id: string;
+  affected_group_id: string | null;
+}
