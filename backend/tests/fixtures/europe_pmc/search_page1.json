@@ -1,0 +1,71 @@
+{
+  "version": "6.9",
+  "hitCount": 5,
+  "nextCursorMark": "AoE1",
+  "request": {"queryString": "(metformin AND placebo)", "resultType": "core", "cursorMark": "*", "pageSize": 3, "sort": "", "synonym": false},
+  "resultList": {
+    "result": [
+      {
+        "id": "90000001",
+        "source": "MED",
+        "pmid": "90000001",
+        "pmcid": "PMC9000001",
+        "doi": "10.1000/EXAMPLE.2020.001",
+        "title": "Metformin versus placebo on HbA1c in adults with type 2 diabetes: a randomised trial.",
+        "authorString": "Rao A, Kim B, Silva C.",
+        "authorList": {
+          "author": [
+            {"fullName": "Rao A", "firstName": "Anita", "lastName": "Rao", "initials": "A"},
+            {"fullName": "Kim B", "firstName": "Byung", "lastName": "Kim", "initials": "B"},
+            {"collectiveName": "Example Diabetes Trial Group"}
+          ]
+        },
+        "journalInfo": {
+          "issue": "4",
+          "volume": "12",
+          "yearOfPublication": 2020,
+          "journal": {"title": "Journal of Example Endocrinology", "medlineAbbreviation": "J Ex Endocrinol"}
+        },
+        "pubYear": "2020",
+        "pageInfo": "101-110",
+        "abstractText": "Adults with type 2 diabetes received metformin or placebo for 12 weeks; the primary outcome was change in HbA1c.",
+        "language": "eng",
+        "pubTypeList": {"pubType": ["Randomized Controlled Trial", "research-article", "Journal Article"]},
+        "meshHeadingList": {
+          "meshHeading": [
+            {"majorTopic_YN": "N", "descriptorName": "Humans"},
+            {"majorTopic_YN": "Y", "descriptorName": "Metformin"},
+            {"majorTopic_YN": "N", "descriptorName": "Diabetes Mellitus, Type 2"}
+          ]
+        },
+        "keywordList": {"keyword": ["HbA1c", "metformin"]},
+        "firstPublicationDate": "2020-03-15"
+      },
+      {
+        "id": "90000002",
+        "source": "MED",
+        "pmid": "90000002",
+        "title": "Effect of metformin in a rat model of insulin resistance",
+        "authorString": "Weber D, Lopez E.",
+        "journalInfo": {"yearOfPublication": 2019, "journal": {"title": "Example Animal Physiology"}},
+        "pubYear": "2019",
+        "abstractText": "<h4>Background</h4>Male Wistar rats were fed a high-fat diet &amp; treated with metformin.<br/>  Insulin   sensitivity improved.",
+        "language": "ENG",
+        "pubTypeList": {"pubType": "Journal Article"},
+        "meshHeadingList": {"meshHeading": [{"descriptorName": "Animals"}, {"descriptorName": "Rats, Wistar"}]},
+        "firstPublicationDate": "2019-07-01"
+      },
+      {
+        "id": "PPR900003",
+        "source": "PPR",
+        "doi": "10.1101/2021.01.01.000003",
+        "title": "Simulation of long-term metformin outcomes using a Markov model",
+        "authorString": "Okafor F.",
+        "pubYear": "2021",
+        "language": "eng",
+        "pubTypeList": {"pubType": ["Preprint"]},
+        "firstPublicationDate": "2021-01-05"
+      }
+    ]
+  }
+}
