@@ -1,13 +1,34 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+# Always isolate this suite from a developer's real review database, even when
+# DATABASE_URL is already configured in the invoking environment.
+_test_directory = tempfile.TemporaryDirectory(prefix="evidenceflow-tests-")
+os.environ["DATABASE_URL"] = "sqlite:///" + str(Path(_test_directory.name) / "suite.db").replace(
+    "\\", "/"
+)
+
 from app.adapters.base import HttpResponse, RateLimiter
+
+
+@pytest.fixture(scope="session", autouse=True)
+def database_schema():
+    from app import models  # noqa: F401 -- register the complete model metadata
+    from app.core.database import Base, engine
+
+    Base.metadata.create_all(engine)
+    yield
+    engine.dispose()
+    _test_directory.cleanup()
+
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -16,8 +37,12 @@ def load_fixture(*parts: str) -> dict[str, Any]:
     return json.loads(FIXTURES.joinpath(*parts).read_text(encoding="utf-8"))
 
 
-def json_response(payload: Any, status: int = 200, headers: Mapping[str, str] | None = None) -> HttpResponse:
-    return HttpResponse(status=status, body=json.dumps(payload).encode(), headers=dict(headers or {}))
+def json_response(
+    payload: Any, status: int = 200, headers: Mapping[str, str] | None = None
+) -> HttpResponse:
+    return HttpResponse(
+        status=status, body=json.dumps(payload).encode(), headers=dict(headers or {})
+    )
 
 
 class FakeTransport:

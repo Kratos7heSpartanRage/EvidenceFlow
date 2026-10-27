@@ -1,6 +1,6 @@
 # Member C: engines and service integration
 
-This branch implements Member C's deterministic baseline from `Start.txt`. All
+This repository includes Member C's deterministic baseline from the original planning blueprint. See `INTEGRATION_ANALYSIS.md` for the merged A/B/C status. All
 engine and service code uses the Python standard library. No API key, model
 download, paid service, or network connection is needed to run its checks.
 
@@ -68,7 +68,7 @@ suggestion = screen(record, criteria, terms)
 spans = extract_pico(record.abstract, terms)
 ```
 
-`RecordLite.id` is the database record ID, not a source PMID. Metadata fields
+`RecordLite.id` is the internal database record ID (UUID strings in the current models), not a source PMID. Positive integer IDs remain supported for examples. Metadata fields
 `authors`, `pub_types`, and `mesh` accept sequences of strings. Missing values use
 `None` or empty tuples. Publication year must already be an integer or `None`.
 `first_author` takes precedence over the first item in `authors`.
@@ -103,11 +103,7 @@ Render overlapping spans with an interval-aware highlighter or per-label view.
 
 ## Persistence handoff for Member A
 
-The database schema, migrations, repositories, routes, decision reconciliation,
-and pipeline do not exist on the base branch. The three services therefore
-accept typed repository interfaces. They are ready for adapter wiring, but are
-not connected to SQLAlchemy or a running application. The only repository
-implementation currently present is a test double.
+The database foundations, review/query repositories, and routes are now present. The three engine services still accept typed repository interfaces that need real SQLAlchemy adapters. The engine-service repository implementation currently present is a test double. The `to_engine_record()` mapper connects the persisted record shape to C's input; machine-result persistence and decision reconciliation remain pending.
 
 1. Implement the `DeduplicationRepository`, `ScreeningRepository`, and
    `PicoRepository` Protocol methods against a repository scoped to one review.
@@ -210,8 +206,8 @@ publication guards, human pair overrides, transitive rejection conflicts,
 screening detectors, PICO offsets/unknowns, cache invalidation, and preservation
 of human state. See the final execution result for the current test count.
 
-Still required for an end-to-end application: A's real repository adapters and
-transactions, B's source imports, D's UI, shared schema agreement, API-level
+Still required for an end-to-end application: real machine-result repository adapters and
+step transactions, background source imports, D's UI, shared persistence schema agreement, full API-level
 checks, database concurrency tests, and clinical relevance evaluation on a
 labeled dataset. Passing synthetic tests does not establish screening or PICO
 accuracy on real literature.

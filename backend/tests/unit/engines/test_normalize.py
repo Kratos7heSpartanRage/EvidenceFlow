@@ -1,16 +1,25 @@
 import unittest
 
 from app.engines.normalize import (
-    normalize_author, normalize_doi, normalize_journal, normalize_pmid, normalize_title,
+    normalize_author,
+    normalize_doi,
+    normalize_journal,
+    normalize_pmid,
+    normalize_title,
 )
 
 
 class NormalizeTests(unittest.TestCase):
     def test_doi_variants(self):
         variants = (
-            "10.1000/ABC", "https://doi.org/10.1000/ABC", "http://doi.org/10.1000/abc",
-            "http://dx.doi.org/10.1000/abc", "DOI: 10.1000/ABC", " 10.1000/abc. ",
-            "https://doi.org/10.1000%2FABC", "10.1000 / abc;",
+            "10.1000/ABC",
+            "https://doi.org/10.1000/ABC",
+            "http://doi.org/10.1000/abc",
+            "http://dx.doi.org/10.1000/abc",
+            "DOI: 10.1000/ABC",
+            " 10.1000/abc. ",
+            "https://doi.org/10.1000%2FABC",
+            "10.1000 / abc;",
         )
         for value in variants:
             with self.subTest(value=value):
@@ -28,7 +37,13 @@ class NormalizeTests(unittest.TestCase):
                 self.assertIsNone(normalize_doi(value))
 
     def test_pmid_normalization(self):
-        for value in (12345, "12345", " 00012345 ", "PMID:12345", "https://pubmed.ncbi.nlm.nih.gov/12345/"):
+        for value in (
+            12345,
+            "12345",
+            " 00012345 ",
+            "PMID:12345",
+            "https://pubmed.ncbi.nlm.nih.gov/12345/",
+        ):
             with self.subTest(value=value):
                 self.assertEqual(normalize_pmid(value), "12345")
 

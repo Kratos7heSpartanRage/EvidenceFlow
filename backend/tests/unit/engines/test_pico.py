@@ -6,32 +6,69 @@ from app.engines.types import PicoTerms
 
 class PicoTests(unittest.TestCase):
     def suggestions(self, text, label, terms=None):
-        return [span for span in extract_pico(text, terms or PicoTerms()) if span.label == label and span.status == "suggested"]
+        return [
+            span
+            for span in extract_pico(text, terms or PicoTerms())
+            if span.label == label and span.status == "suggested"
+        ]
 
     def test_population_cues(self):
-        for text in ("Patients with asthma were enrolled.", "Adults with diabetes participated.", "Children aged 12 participated.", "120 participants enrolled.", "Women who volunteered were included.", "Subjects with asthma enrolled."):
+        for text in (
+            "Patients with asthma were enrolled.",
+            "Adults with diabetes participated.",
+            "Children aged 12 participated.",
+            "120 participants enrolled.",
+            "Women who volunteered were included.",
+            "Subjects with asthma enrolled.",
+        ):
             with self.subTest(text=text):
                 self.assertTrue(self.suggestions(text, "P"))
 
     def test_intervention_cues(self):
-        for text in ("Randomized to therapy.", "Randomised to therapy.", "Received therapy.", "Treated with therapy.", "Administration of therapy."):
+        for text in (
+            "Randomized to therapy.",
+            "Randomised to therapy.",
+            "Received therapy.",
+            "Treated with therapy.",
+            "Administration of therapy.",
+        ):
             with self.subTest(text=text):
                 self.assertTrue(self.suggestions(text, "I"))
 
     def test_comparator_cues(self):
-        for text in ("Therapy versus usual care.", "Therapy vs. placebo.", "Compared with standard care.", "Compared to sham.", "The control group received water."):
+        for text in (
+            "Therapy versus usual care.",
+            "Therapy vs. placebo.",
+            "Compared with standard care.",
+            "Compared to sham.",
+            "The control group received water.",
+        ):
             with self.subTest(text=text):
                 self.assertTrue(self.suggestions(text, "C"))
 
     def test_outcome_cues(self):
-        for text in ("Primary outcome was weight.", "Secondary outcome was pain.", "Measured blood pressure.", "Change in weight was recorded.", "Incidence of relapse fell.", "Mortality was measured."):
+        for text in (
+            "Primary outcome was weight.",
+            "Secondary outcome was pain.",
+            "Measured blood pressure.",
+            "Change in weight was recorded.",
+            "Incidence of relapse fell.",
+            "Mortality was measured.",
+        ):
             with self.subTest(text=text):
                 self.assertTrue(self.suggestions(text, "O"))
 
     def test_unknown_comparator_never_fabricated(self):
-        spans = [span for span in extract_pico("Patients with asthma received therapy.", PicoTerms()) if span.label == "C"]
+        spans = [
+            span
+            for span in extract_pico("Patients with asthma received therapy.", PicoTerms())
+            if span.label == "C"
+        ]
         self.assertEqual(len(spans), 1)
-        self.assertEqual((spans[0].status, spans[0].text, spans[0].start_char, spans[0].end_char), ("unknown", None, None, None))
+        self.assertEqual(
+            (spans[0].status, spans[0].text, spans[0].start_char, spans[0].end_char),
+            ("unknown", None, None, None),
+        )
 
     def test_empty_abstract_four_unknown_labels(self):
         for text in (None, "", "   "):
@@ -41,10 +78,12 @@ class PicoTests(unittest.TestCase):
                 self.assertTrue(all(span.status == "unknown" for span in result))
 
     def test_unicode_offsets_slice_original_text(self):
-        text = "😀 Étude. Patients with café sensitivity received β-therapy; primary outcome was pain."
+        text = (
+            "😀 Étude. Patients with café sensitivity received β-therapy; primary outcome was pain."
+        )
         for span in extract_pico(text, PicoTerms()):
             if span.status == "suggested":
-                self.assertEqual(text[span.start_char:span.end_char], span.text)
+                self.assertEqual(text[span.start_char : span.end_char], span.text)
 
     def test_review_lexicon_all_labels(self):
         terms = PicoTerms(("migraine",), ("compound x",), ("saline",), ("headache days",))
@@ -56,10 +95,15 @@ class PicoTests(unittest.TestCase):
         self.assertEqual(len(self.suggestions(text, "P")[0].text.split()), 12)
 
     def test_semicolon_stops_span(self):
-        self.assertEqual(self.suggestions("Received therapy; follow-up occurred later.", "I")[0].text, "Received therapy")
+        self.assertEqual(
+            self.suggestions("Received therapy; follow-up occurred later.", "I")[0].text,
+            "Received therapy",
+        )
 
     def test_next_label_stops_previous_span(self):
-        text = "Patients with asthma received therapy, compared with placebo; mortality was measured."
+        text = (
+            "Patients with asthma received therapy, compared with placebo; mortality was measured."
+        )
         self.assertEqual(self.suggestions(text, "P")[0].text, "Patients with asthma")
         self.assertEqual(self.suggestions(text, "I")[0].text, "received therapy")
 
@@ -69,14 +113,19 @@ class PicoTests(unittest.TestCase):
         self.assertNotEqual(result[0].start_char, result[1].start_char)
 
     def test_review_term_does_not_match_substring(self):
-        self.assertFalse(self.suggestions("We tested rating scales.", "I", PicoTerms(intervention=("rat",))))
+        self.assertFalse(
+            self.suggestions("We tested rating scales.", "I", PicoTerms(intervention=("rat",)))
+        )
 
     def test_output_deterministic(self):
         text = "Patients with asthma received therapy compared with placebo."
         self.assertEqual(extract_pico(text, PicoTerms()), extract_pico(text, PicoTerms()))
 
     def test_explicitly_absent_comparator_is_unknown(self):
-        for text in ("There was no control group.", "This trial proceeded without a control group."):
+        for text in (
+            "There was no control group.",
+            "This trial proceeded without a control group.",
+        ):
             with self.subTest(text=text):
                 self.assertFalse(self.suggestions(text, "C"))
 
@@ -92,7 +141,9 @@ class PicoTests(unittest.TestCase):
         self.assertTrue(self.suggestions("There was no change in pain.", "O"))
 
     def test_overlapping_same_label_cues_do_not_duplicate(self):
-        result = self.suggestions("Patients with asthma enrolled.", "P", PicoTerms(population=("asthma",)))
+        result = self.suggestions(
+            "Patients with asthma enrolled.", "P", PicoTerms(population=("asthma",))
+        )
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].text, "Patients with asthma enrolled")
 

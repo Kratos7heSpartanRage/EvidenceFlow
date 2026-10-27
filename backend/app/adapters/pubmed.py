@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import os
 import time
-import xml.etree.ElementTree as ET  # noqa: S405 (trusted NCBI source)
+import xml.etree.ElementTree as ET
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -37,7 +37,14 @@ from app.adapters.base import (
     request_bytes,
     request_json,
 )
-from app.schemas.contracts import Author, PreviewResult, QuerySpec, RecordIn, SearchResult, SourceName
+from app.schemas.contracts import (
+    Author,
+    PreviewResult,
+    QuerySpec,
+    RecordIn,
+    SearchResult,
+    SourceName,
+)
 
 EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 NCBI_POLICY_URL = "https://www.ncbi.nlm.nih.gov/home/about/policies/"
@@ -94,7 +101,9 @@ class PubMedAdapter:
         records, warnings = self._efetch(ids)
         return PreviewResult(hit_count=count, records=records, warnings=warnings)
 
-    def search(self, spec: QuerySpec, cap: int, known_ids: frozenset[str] = frozenset()) -> SearchResult:
+    def search(
+        self, spec: QuerySpec, cap: int, known_ids: frozenset[str] = frozenset()
+    ) -> SearchResult:
         if cap < 1:
             raise ValueError("cap must be at least 1")
         cap = min(cap, ESEARCH_MAX_PAGE)
@@ -102,7 +111,9 @@ class PubMedAdapter:
         seen: set[str] = set()
         hit_count: int | None = None
         while len(ids) < cap:
-            count, page = self._esearch(spec, retstart=len(ids), retmax=min(ESEARCH_MAX_PAGE, cap - len(ids)))
+            count, page = self._esearch(
+                spec, retstart=len(ids), retmax=min(ESEARCH_MAX_PAGE, cap - len(ids))
+            )
             if hit_count is None:
                 hit_count = count
             new_on_page = [pmid for pmid in page if pmid not in seen]
@@ -157,15 +168,21 @@ class PubMedAdapter:
         }
         if spec.date_from or spec.date_to:
             params["datetype"] = "pdat"
-            params["mindate"] = spec.date_from.strftime("%Y/%m/%d") if spec.date_from else OPEN_START
+            params["mindate"] = (
+                spec.date_from.strftime("%Y/%m/%d") if spec.date_from else OPEN_START
+            )
             params["maxdate"] = spec.date_to.strftime("%Y/%m/%d") if spec.date_to else OPEN_END
 
         data = request_json(**self._request_kwargs("esearch.fcgi", params))
         result = data.get("esearchresult") if isinstance(data, dict) else None
         if not isinstance(result, dict):
-            raise SourceError("malformed_response", self.name, "ESearch response has no esearchresult")
+            raise SourceError(
+                "malformed_response", self.name, "ESearch response has no esearchresult"
+            )
         if result.get("ERROR"):
-            raise SourceError("bad_query", self.name, f"PubMed rejected the query: {result['ERROR']}", 200)
+            raise SourceError(
+                "bad_query", self.name, f"PubMed rejected the query: {result['ERROR']}", 200
+            )
         try:
             count = max(int(result.get("count", 0)), 0)
         except (TypeError, ValueError):
@@ -177,7 +194,12 @@ class PubMedAdapter:
         by_pmid: dict[str, RecordIn] = {}
         warnings: list[str] = []
         for batch in _chunks(pmids, EFETCH_BATCH):
-            params = {"db": "pubmed", "id": ",".join(batch), "retmode": "xml", **self._common_params()}
+            params = {
+                "db": "pubmed",
+                "id": ",".join(batch),
+                "retmode": "xml",
+                **self._common_params(),
+            }
             body = request_bytes(**self._request_kwargs("efetch.fcgi", params))
             records, batch_warnings = parse_efetch_xml(body)
             warnings.extend(batch_warnings)
@@ -196,9 +218,11 @@ class PubMedAdapter:
 def parse_efetch_xml(body: bytes) -> tuple[list[RecordIn], list[str]]:
     """Parse an EFetch PubmedArticleSet. Unusable articles become warnings."""
     try:
-        root = ET.fromstring(body)  # noqa: S314 (trusted NCBI source)
+        root = ET.fromstring(body)
     except ET.ParseError as exc:
-        raise SourceError("malformed_response", SourceName.PUBMED.value, f"invalid XML: {exc}", 200) from exc
+        raise SourceError(
+            "malformed_response", SourceName.PUBMED.value, f"invalid XML: {exc}", 200
+        ) from exc
     records: list[RecordIn] = []
     warnings: list[str] = []
     for article in root.findall("PubmedArticle"):

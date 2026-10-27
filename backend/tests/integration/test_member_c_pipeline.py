@@ -18,10 +18,18 @@ class MemberCPipelineTests(unittest.TestCase):
         self.terms = PicoTerms(population=("migraine",), intervention=("compound x",))
         self.criteria = [CriterionSpec(1, "non_human", reason="Review of human treatment")]
         self.records = [
-            RecordLite(1, title="Clinical trial", abstract="Patients with migraine received compound x compared with placebo.",
-                       source="pubmed", pmid="12345", mesh=("Humans",)),
+            RecordLite(
+                1,
+                title="Clinical trial",
+                abstract="Patients with migraine received compound x compared with placebo.",
+                source="pubmed",
+                pmid="12345",
+                mesh=("Humans",),
+            ),
             RecordLite(2, title="Clinical trial", source="europe_pmc", pmid="12345"),
-            RecordLite(3, title="Animal study", abstract="Mice received compound x.", mesh=("Animals",)),
+            RecordLite(
+                3, title="Animal study", abstract="Mice received compound x.", mesh=("Animals",)
+            ),
             RecordLite(4, title="Missing abstract"),
         ]
 
@@ -33,7 +41,9 @@ class MemberCPipelineTests(unittest.TestCase):
         result = self.dedup.run(self.records, run_id=1)
         records = self.representatives(result)
         self.assertEqual([record.id for record in records], [1, 3, 4])
-        screened = self.screening.run(records, self.criteria, criteria_version_id=1, pico_terms=self.terms)
+        screened = self.screening.run(
+            records, self.criteria, criteria_version_id=1, pico_terms=self.terms
+        )
         decisions = {item.key.record_id: item.suggestion.decision for item in screened}
         self.assertEqual(decisions, {1: "include", 3: "exclude", 4: "maybe"})
         tagged = self.pico.run(records, decisions=decisions, pico_terms=self.terms)
@@ -41,17 +51,38 @@ class MemberCPipelineTests(unittest.TestCase):
         self.assertTrue(all(span.status == "unknown" for span in tagged[1].annotations))
         repeated_groups = self.dedup.run(self.records, run_id=2)
         self.assertEqual(result.groups, repeated_groups.groups)
-        self.assertTrue(all(item.cached for item in self.screening.run(
-            records, self.criteria, criteria_version_id=1, pico_terms=self.terms,
-        )))
-        self.assertTrue(all(item.cached for item in self.pico.run(records, decisions=decisions, pico_terms=self.terms)))
-        self.assertEqual((len(self.repo.evaluations), len(self.repo.suggestions), len(self.repo.annotations)), (1, 3, 2))
+        self.assertTrue(
+            all(
+                item.cached
+                for item in self.screening.run(
+                    records,
+                    self.criteria,
+                    criteria_version_id=1,
+                    pico_terms=self.terms,
+                )
+            )
+        )
+        self.assertTrue(
+            all(
+                item.cached
+                for item in self.pico.run(records, decisions=decisions, pico_terms=self.terms)
+            )
+        )
+        self.assertEqual(
+            (len(self.repo.evaluations), len(self.repo.suggestions), len(self.repo.annotations)),
+            (1, 3, 2),
+        )
 
     def test_caller_preserves_human_exclusion_over_machine_include(self):
         human = HumanDecision(1, "exclude", 1, reason_text="Wrong study population")
         records = self.representatives(self.dedup.run(self.records, run_id=1))
-        screened = self.screening.run(records, self.criteria, criteria_version_id=1, pico_terms=self.terms,
-                                      human_decisions={1: human})
+        screened = self.screening.run(
+            records,
+            self.criteria,
+            criteria_version_id=1,
+            pico_terms=self.terms,
+            human_decisions={1: human},
+        )
         self.assertEqual(screened[0].suggestion.decision, "include")
         self.assertEqual(screened[0].stale_reasons, ())
         # The pipeline/decision layer resolves precedence, not the engine.
@@ -63,7 +94,9 @@ class MemberCPipelineTests(unittest.TestCase):
 
     def test_saved_snapshots_keep_earlier_groups_after_workspace_change(self):
         first = self.dedup.run(self.records, run_id=1)
-        second = self.dedup.run(self.records, run_id=2, pair_decisions=[PairDecision(1, 2, "reject")])
+        second = self.dedup.run(
+            self.records, run_id=2, pair_decisions=[PairDecision(1, 2, "reject")]
+        )
         self.assertEqual(self.repo.snapshots[1], first.groups)
         self.assertEqual(first.groups[0].member_ids, (1, 2))
         self.assertEqual(second.groups[0].member_ids, (1,))

@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import ClassVar
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -26,10 +27,10 @@ PAGES = {
 
 
 class StubEuropePMC(BaseHTTPRequestHandler):
-    requests: list[dict[str, list[str]]] = []
-    fail_next: list[int] = []
+    requests: ClassVar[list[dict[str, list[str]]]] = []
+    fail_next: ClassVar[list[int]] = []
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         params = parse_qs(urlparse(self.path).query)
         type(self).requests.append(params)
         if type(self).fail_next:

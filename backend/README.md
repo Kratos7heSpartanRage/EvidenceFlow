@@ -1,7 +1,6 @@
 # EvidenceFlow backend
 
-Status: literature-source adapters for Europe PMC and PubMed (Member B). The API, database and
-processing engines are added by other workstreams.
+Status: source adapters, database/models, review/query API, and processing-engine baseline are integrated. See [setup](../README.md) and the [integration analysis](../docs/INTEGRATION_ANALYSIS.md) for current workflow limits.
 
 ## Setup and tests
 

@@ -8,9 +8,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from types import MappingProxyType
-from typing import Any, Literal, Mapping
+from typing import Any, Literal
+
+RecordId = int | str
+
+
+def record_id_key(value: RecordId) -> tuple[int, int | str]:
+    return (0, value) if isinstance(value, int) else (1, value)
+
 
 Decision = Literal["include", "exclude", "maybe"]
 Label = Literal["P", "I", "C", "O"]
@@ -31,7 +39,7 @@ def _terms(values: tuple[str, ...] | str) -> tuple[str, ...]:
 
 @dataclass(frozen=True, slots=True)
 class RecordLite:
-    id: int
+    id: RecordId
     title: str = ""
     abstract: str | None = None
     doi: str | None = None
@@ -47,8 +55,11 @@ class RecordLite:
     content_hash: str | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.id, int) or isinstance(self.id, bool) or self.id < 1:
-            raise ValueError("Record ids must be positive integers")
+        if not (
+            (isinstance(self.id, int) and not isinstance(self.id, bool) and self.id > 0)
+            or (isinstance(self.id, str) and bool(self.id.strip()))
+        ):
+            raise ValueError("Record ids must be positive integers or nonempty internal strings")
         if self.year is not None and (
             not isinstance(self.year, int) or isinstance(self.year, bool)
         ):
@@ -84,7 +95,7 @@ class PicoTerms:
 
 @dataclass(frozen=True, slots=True)
 class CriterionSpec:
-    id: int
+    id: RecordId
     code: str
     kind: Literal["include", "exclude"] = "exclude"
     reason: str = ""
@@ -99,6 +110,7 @@ class CriterionSpec:
             raise ValueError("Unknown detector")
         if not self.reason.strip():
             raise ValueError("Each criterion needs a review-specific reason")
+
         # Freeze a JSON copy so a caller cannot mutate parameters behind a cache key.
         def freeze(value: Any) -> Any:
             if isinstance(value, dict):
@@ -118,15 +130,20 @@ class CriterionSpec:
             return value
 
         return {
-            "id": self.id, "code": self.code, "kind": self.kind, "reason": self.reason,
-            "detector": self.detector, "is_active": self.is_active, "params": thaw(self.params),
+            "id": self.id,
+            "code": self.code,
+            "kind": self.kind,
+            "reason": self.reason,
+            "detector": self.detector,
+            "is_active": self.is_active,
+            "params": thaw(self.params),
         }
 
 
 @dataclass(frozen=True, slots=True)
 class PairResult:
-    record_a_id: int
-    record_b_id: int
+    record_a_id: RecordId
+    record_b_id: RecordId
     method: str
     score: float
     tier: Literal["auto", "uncertain"]
@@ -142,14 +159,14 @@ class Evidence:
     field: str
     matched: tuple[str, ...]
     explanation: str
-    criterion_id: int | None = None
+    criterion_id: RecordId | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class Suggestion:
     decision: Decision
     strength: Literal["strong", "weak", "none"]
-    criterion_id: int | None
+    criterion_id: RecordId | None
     evidence: tuple[Evidence, ...]
     algo_version: str
 

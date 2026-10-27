@@ -66,11 +66,11 @@ class UrllibTransport:
 
     def get(self, url: str, params: Mapping[str, Any], timeout: float) -> HttpResponse:
         full_url = f"{url}?{urllib.parse.urlencode(params)}" if params else url
-        request = urllib.request.Request(  # noqa: S310 (fixed https hosts)
+        request = urllib.request.Request(
             full_url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"}
         )
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+            with urllib.request.urlopen(request, timeout=timeout) as response:
                 return HttpResponse(response.status, response.read(), dict(response.headers))
         except urllib.error.HTTPError as exc:
             return HttpResponse(exc.code, exc.read() or b"", dict(exc.headers or {}))
@@ -145,7 +145,9 @@ def request_bytes(
         try:
             response = transport.get(url, params, timeout)
         except TimeoutError as exc:
-            last_error = SourceError("timeout", source, f"no response within {timeout:.0f}s ({exc})")
+            last_error = SourceError(
+                "timeout", source, f"no response within {timeout:.0f}s ({exc})"
+            )
             continue
         except (ConnectionError, OSError) as exc:
             last_error = SourceError("network", source, f"could not reach the source ({exc})")
@@ -157,12 +159,16 @@ def request_bytes(
         detail = _short_body(response.body)
         if response.status in RETRYABLE_STATUS:
             kind: ErrorKind = "rate_limited" if response.status == 429 else "upstream_error"
-            last_error = SourceError(kind, source, f"HTTP {response.status} {detail}", response.status)
+            last_error = SourceError(
+                kind, source, f"HTTP {response.status} {detail}", response.status
+            )
             last_error.retry_after = response.headers.get("Retry-After")  # type: ignore[attr-defined]
             continue
         if response.status == 400:
             raise SourceError("bad_query", source, f"the source rejected the query: {detail}", 400)
-        raise SourceError("upstream_error", source, f"HTTP {response.status} {detail}", response.status)
+        raise SourceError(
+            "upstream_error", source, f"HTTP {response.status} {detail}", response.status
+        )
 
     assert last_error is not None
     last_error.message = f"{last_error.message} (gave up after {max_retries + 1} attempts)"
@@ -224,7 +230,9 @@ class SourceAdapter(Protocol):
         """Hit count plus the top `n` records, for the researcher to judge the search."""
         ...
 
-    def search(self, spec: QuerySpec, cap: int, known_ids: frozenset[str] = frozenset()) -> SearchResult:
+    def search(
+        self, spec: QuerySpec, cap: int, known_ids: frozenset[str] = frozenset()
+    ) -> SearchResult:
         """Up to `cap` results in rank order. Records whose source_record_id is in
         `known_ids` are listed in `ids` but not returned again in `records`."""
         ...

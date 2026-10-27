@@ -12,7 +12,10 @@ class DeduplicationServiceTests(unittest.TestCase):
     def setUp(self):
         self.repo = MemoryRepository()
         self.service = DeduplicationService(self.repo)
-        self.records = [RecordLite(index, title="Same study", year=2024, first_author="Smith J") for index in (1, 2, 3)]
+        self.records = [
+            RecordLite(index, title="Same study", year=2024, first_author="Smith J")
+            for index in (1, 2, 3)
+        ]
 
     def test_rerun_does_not_duplicate_machine_evaluation(self):
         first = self.service.run(self.records, run_id=1)
@@ -21,7 +24,9 @@ class DeduplicationServiceTests(unittest.TestCase):
         self.assertEqual((len(self.repo.evaluations), len(self.repo.snapshots)), (1, 1))
 
     def test_direct_reject_separates_pair(self):
-        result = self.service.run(self.records[:2], run_id=1, pair_decisions=[PairDecision(1, 2, "reject")])
+        result = self.service.run(
+            self.records[:2], run_id=1, pair_decisions=[PairDecision(1, 2, "reject")]
+        )
         self.assertEqual([snapshot.member_ids for snapshot in result.groups], [(1,), (2,)])
 
     def test_manual_reject_survives_rerun(self):
@@ -31,16 +36,22 @@ class DeduplicationServiceTests(unittest.TestCase):
         self.assertEqual(first.groups, second.groups)
 
     def test_transitive_bypass_returns_conflict_and_path(self):
-        result = self.service.run(self.records, run_id=1, pair_decisions=[PairDecision(1, 2, "reject")])
+        result = self.service.run(
+            self.records, run_id=1, pair_decisions=[PairDecision(1, 2, "reject")]
+        )
         self.assertEqual(result.conflicts[0].path, (1, 3, 2))
         self.assertEqual(result.conflicts[0].kind, "pair_override_bypassed")
-        rerun = self.service.run(self.records, run_id=2, pair_decisions=[PairDecision(1, 2, "reject")])
+        rerun = self.service.run(
+            self.records, run_id=2, pair_decisions=[PairDecision(1, 2, "reject")]
+        )
         self.assertEqual(result.conflicts[0].fingerprint, rerun.conflicts[0].fingerprint)
 
     def test_human_confirm_connects_uncertain_pair(self):
         records = [self.records[0], replace(self.records[1], first_author=None)]
         automatic = self.service.run(records, run_id=1)
-        confirmed = self.service.run(records, run_id=2, pair_decisions=[PairDecision(2, 1, "confirm")])
+        confirmed = self.service.run(
+            records, run_id=2, pair_decisions=[PairDecision(2, 1, "confirm")]
+        )
         self.assertEqual(len(automatic.groups), 2)
         self.assertEqual(confirmed.groups[0].member_ids, (1, 2))
 
@@ -56,12 +67,18 @@ class DeduplicationServiceTests(unittest.TestCase):
         self.assertEqual(result.groups[0].representative_id, 3)
 
     def test_inactive_decision_does_not_add_records(self):
-        result = self.service.run(self.records[:1], run_id=1, pair_decisions=[PairDecision(1, 99, "confirm")])
+        result = self.service.run(
+            self.records[:1], run_id=1, pair_decisions=[PairDecision(1, 99, "confirm")]
+        )
         self.assertEqual(result.groups[0].member_ids, (1,))
 
     def test_duplicate_current_pair_decisions_rejected(self):
         with self.assertRaises(ValueError):
-            self.service.run(self.records, run_id=1, pair_decisions=[PairDecision(1, 2, "confirm"), PairDecision(2, 1, "reject")])
+            self.service.run(
+                self.records,
+                run_id=1,
+                pair_decisions=[PairDecision(1, 2, "confirm"), PairDecision(2, 1, "reject")],
+            )
 
     def test_existing_snapshot_cannot_be_rewritten(self):
         self.service.run(self.records, run_id=1)
@@ -77,8 +94,13 @@ class ScreeningServiceTests(unittest.TestCase):
         self.terms = PicoTerms(population=("migraine",), intervention=("compound x",))
 
     def run_service(self, record=None, criteria=None, version=1, terms=None, decisions=None):
-        return self.service.run([record or self.record], criteria or [], criteria_version_id=version,
-                                pico_terms=terms or self.terms, human_decisions=decisions)[0]
+        return self.service.run(
+            [record or self.record],
+            criteria or [],
+            criteria_version_id=version,
+            pico_terms=terms or self.terms,
+            human_decisions=decisions,
+        )[0]
 
     def test_idempotent_and_cached(self):
         self.assertFalse(self.run_service().cached)
@@ -97,13 +119,19 @@ class ScreeningServiceTests(unittest.TestCase):
 
     def test_changed_pico_terms_invalidate(self):
         self.run_service()
-        result = self.run_service(terms=PicoTerms(population=("unrelated",), intervention=("unrelated",)))
+        result = self.run_service(
+            terms=PicoTerms(population=("unrelated",), intervention=("unrelated",))
+        )
         self.assertFalse(result.cached)
         self.assertEqual(result.suggestion.decision, "maybe")
 
     def test_changed_parameters_invalidate(self):
-        first = CriterionSpec(1, "custom_keyword", reason="Criterion", params={"terms": ["unrelated"]})
-        second = CriterionSpec(1, "custom_keyword", reason="Criterion", params={"terms": ["migraine"]})
+        first = CriterionSpec(
+            1, "custom_keyword", reason="Criterion", params={"terms": ["unrelated"]}
+        )
+        second = CriterionSpec(
+            1, "custom_keyword", reason="Criterion", params={"terms": ["migraine"]}
+        )
         self.run_service(criteria=[first])
         result = self.run_service(criteria=[second])
         self.assertFalse(result.cached)
@@ -113,7 +141,9 @@ class ScreeningServiceTests(unittest.TestCase):
         decision = HumanDecision(1, "exclude", 1, criterion_id=99)
         decisions = {1: decision}
         result = self.run_service(version=2, decisions=decisions)
-        self.assertEqual(result.stale_reasons, ("criterion_removed_or_inactive", "suggestion_disagrees"))
+        self.assertEqual(
+            result.stale_reasons, ("criterion_removed_or_inactive", "suggestion_disagrees")
+        )
         self.assertEqual(decisions[1], decision)
         self.assertEqual(self.repo.human_decisions, {1: "exclude"})
 
@@ -122,16 +152,22 @@ class ScreeningServiceTests(unittest.TestCase):
         self.assertEqual(result.stale_reasons, ())
 
     def test_deliberate_override_of_current_suggestion_is_not_stale(self):
-        result = self.run_service(decisions={1: HumanDecision(1, "exclude", 1, reason_text="Reviewer assessment")})
+        result = self.run_service(
+            decisions={1: HumanDecision(1, "exclude", 1, reason_text="Reviewer assessment")}
+        )
         self.assertEqual(result.stale_reasons, ())
 
     def test_changed_content_can_flag_disagreement_with_same_criteria_version(self):
-        decision = HumanDecision(1, "exclude", 1, reason_text="Reviewer assessment", content_hash="older-input")
+        decision = HumanDecision(
+            1, "exclude", 1, reason_text="Reviewer assessment", content_hash="older-input"
+        )
         result = self.run_service(decisions={1: decision})
         self.assertEqual(result.stale_reasons, ("suggestion_disagrees",))
 
     def test_changed_terms_can_flag_disagreement_with_same_criteria_version(self):
-        decision = HumanDecision(1, "exclude", 1, reason_text="Reviewer assessment", context_hash="older-context")
+        decision = HumanDecision(
+            1, "exclude", 1, reason_text="Reviewer assessment", context_hash="older-context"
+        )
         result = self.run_service(decisions={1: decision})
         self.assertEqual(result.stale_reasons, ("suggestion_disagrees",))
 
@@ -150,7 +186,9 @@ class PicoServiceTests(unittest.TestCase):
         self.record = RecordLite(1, abstract="Patients with migraine received compound x.")
 
     def run_service(self, record=None, terms=None, decision="include"):
-        return self.service.run([record or self.record], decisions={1: decision}, pico_terms=terms or PicoTerms())
+        return self.service.run(
+            [record or self.record], decisions={1: decision}, pico_terms=terms or PicoTerms()
+        )
 
     def test_annotation_batches_are_idempotent(self):
         self.assertFalse(self.run_service()[0].cached)
@@ -165,7 +203,9 @@ class PicoServiceTests(unittest.TestCase):
 
     def test_abstract_changes_invalidate(self):
         self.run_service()
-        self.assertFalse(self.run_service(record=replace(self.record, abstract="Received compound y."))[0].cached)
+        self.assertFalse(
+            self.run_service(record=replace(self.record, abstract="Received compound y."))[0].cached
+        )
 
     def test_review_terms_changes_invalidate(self):
         self.run_service()

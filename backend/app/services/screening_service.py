@@ -2,17 +2,27 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping, Protocol
+from typing import Protocol
 
 from ..engines import screening
-from ..engines.types import CriterionSpec, Decision, PicoTerms, RecordLite, Suggestion, fingerprint
+from ..engines.types import (
+    CriterionSpec,
+    Decision,
+    PicoTerms,
+    RecordId,
+    RecordLite,
+    Suggestion,
+    fingerprint,
+    record_id_key,
+)
 
 
 @dataclass(frozen=True, slots=True)
 class SuggestionKey:
-    record_id: int
-    criteria_version_id: int
+    record_id: RecordId
+    criteria_version_id: RecordId
     content_hash: str
     algo_version: str
     context_hash: str
@@ -20,10 +30,10 @@ class SuggestionKey:
 
 @dataclass(frozen=True, slots=True)
 class HumanDecision:
-    record_id: int
+    record_id: RecordId
     decision: Decision
-    criteria_version_id: int
-    criterion_id: int | None = None
+    criteria_version_id: RecordId
+    criterion_id: RecordId | None = None
     reason_text: str | None = None
     content_hash: str | None = None
     context_hash: str | None = None
@@ -31,7 +41,11 @@ class HumanDecision:
     def __post_init__(self) -> None:
         if self.decision not in {"include", "exclude", "maybe"}:
             raise ValueError("Unknown screening decision")
-        if self.decision == "exclude" and self.criterion_id is None and not (self.reason_text or "").strip():
+        if (
+            self.decision == "exclude"
+            and self.criterion_id is None
+            and not (self.reason_text or "").strip()
+        ):
             raise ValueError("A human exclusion requires a criterion or a reason")
 
 
@@ -60,24 +74,38 @@ class ScreeningService:
         self.repository = repository
 
     def run(
-        self, records: list[RecordLite], criteria: list[CriterionSpec], *,
-        criteria_version_id: int, pico_terms: PicoTerms,
-        human_decisions: Mapping[int, HumanDecision] | None = None,
+        self,
+        records: list[RecordLite],
+        criteria: list[CriterionSpec],
+        *,
+        criteria_version_id: RecordId,
+        pico_terms: PicoTerms,
+        human_decisions: Mapping[RecordId, HumanDecision] | None = None,
     ) -> tuple[ScreeningResult, ...]:
         if len({record.id for record in records}) != len(records):
             raise ValueError("Record ids must be unique")
         if len({criterion.id for criterion in criteria}) != len(criteria):
             raise ValueError("Criterion ids must be unique")
-        context_hash = fingerprint({
-            "pico_terms": pico_terms.input_hash,
-            "criteria": [criterion.serializable() for criterion in sorted(criteria, key=lambda c: c.id)],
-        })
+        context_hash = fingerprint(
+            {
+                "pico_terms": pico_terms.input_hash,
+                "criteria": [
+                    criterion.serializable()
+                    for criterion in sorted(criteria, key=lambda c: record_id_key(c.id))
+                ],
+            }
+        )
         active_criteria = {criterion.id for criterion in criteria if criterion.is_active}
         decisions = human_decisions or {}
         result = []
-        for record in sorted(records, key=lambda item: item.id):
-            key = SuggestionKey(record.id, criteria_version_id, record.input_hash,
-                                screening.ALGO_VERSION, context_hash)
+        for record in sorted(records, key=lambda item: record_id_key(item.id)):
+            key = SuggestionKey(
+                record.id,
+                criteria_version_id,
+                record.input_hash,
+                screening.ALGO_VERSION,
+                context_hash,
+            )
             suggestion = self.repository.get_suggestion(key)
             cached = suggestion is not None
             if suggestion is None:

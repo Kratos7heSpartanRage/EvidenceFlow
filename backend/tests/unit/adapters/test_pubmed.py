@@ -52,12 +52,18 @@ class TestParseEfetch:
     def test_full_article(self):
         r = self.by_pmid("90000001")
         assert r.source == SourceName.PUBMED
-        assert r.title == "Effect of metformin versus placebo on HbA1c in adults with type 2 diabetes."
+        assert (
+            r.title == "Effect of metformin versus placebo on HbA1c in adults with type 2 diabetes."
+        )
         assert r.abstract.startswith("BACKGROUND: Metformin is first-line therapy. METHODS: Adults")
         assert "RESULTS: The primary outcome was change in HbA1c." in r.abstract
         assert r.doi == "10.1000/EXAMPLE.2020.001"  # ArticleIdList preferred over ELocationID
         assert r.pmcid == "PMC9000001"
-        assert [a.full_name for a in r.authors] == ["Rao A", "Kim B", "Example Diabetes Trial Group"]
+        assert [a.full_name for a in r.authors] == [
+            "Rao A",
+            "Kim B",
+            "Example Diabetes Trial Group",
+        ]
         assert r.authors[0].last_name == "Rao" and r.authors[2].last_name is None
         assert (r.year, r.publication_date) == (2020, "2020-02-28")  # electronic date preferred
         assert (r.journal, r.volume, r.issue, r.pages) == (
@@ -158,7 +164,8 @@ class TestSearch:
 
     def test_cap_and_truncation(self, no_wait_limiter):
         t = FakeTransport(
-            json_response(esearch_page(["1", "2"], count=13790)), xml_response(b"<PubmedArticleSet/>")
+            json_response(esearch_page(["1", "2"], count=13790)),
+            xml_response(b"<PubmedArticleSet/>"),
         )
         result = adapter(t, no_wait_limiter).search(spec(), cap=2)
         assert result.ids == ["1", "2"] and result.truncated is True
@@ -167,7 +174,9 @@ class TestSearch:
     def test_pages_esearch_when_a_page_comes_back_short(self, no_wait_limiter):
         t = FakeTransport(
             json_response(esearch_page(["1", "2"], count=3)),
-            json_response(esearch_page(["2", "3"], count=3)),  # overlapping page: repeated id ignored
+            json_response(
+                esearch_page(["2", "3"], count=3)
+            ),  # overlapping page: repeated id ignored
             xml_response(b"<PubmedArticleSet/>"),
         )
         result = adapter(t, no_wait_limiter).search(spec(), cap=10)
@@ -229,7 +238,12 @@ class TestPreviewCountAndConfig:
 
     def test_retries_on_429(self, no_wait_limiter, sleeps):
         t = FakeTransport(HttpResponse(429, b"", {"Retry-After": "1"}), json_response(EMPTY))
-        assert PubMedAdapter(t, no_wait_limiter, email="x@e.org", api_key="", sleep=sleeps).count(spec()) == 0
+        assert (
+            PubMedAdapter(t, no_wait_limiter, email="x@e.org", api_key="", sleep=sleeps).count(
+                spec()
+            )
+            == 0
+        )
         assert sleeps.calls == [1.0]
 
     def test_efetch_failure_raises(self, no_wait_limiter):

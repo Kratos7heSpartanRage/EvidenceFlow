@@ -2,21 +2,34 @@
 
 **An auditable workspace for systematic literature reviews.** EvidenceFlow is designed to help researchers move from a structured review question to a searchable, deduplicated, screened, and exportable evidence set while keeping reviewer decisions visible and traceable.
 
-> **Project status:** Backend engine baseline implemented. Member C's deduplication, screening, PICO engines, repository interfaces, and offline tests are available. The application UI, HTTP API, source adapters, and database integration are still pending. The original planning blueprint is held locally as `Start.txt` and is not included in this repository.
+> **Project status:** Integrated backend baseline. Europe PMC/PubMed adapters, database models and migrations, review/query APIs, and C's processing engines are present. The frontend and complete background processing/review loop still need implementation. See the [integration analysis](docs/INTEGRATION_ANALYSIS.md) for verified behavior and remaining work.
 
-## Member C implementation
+## Run the backend
 
-See the [integration guide](docs/MEMBER_C.md) for contracts, persistence requirements, and handoff steps, and the [methods contribution](docs/MEMBER_C_REPORT.md) for report material.
-
-With Python 3.11 or newer, run the offline checks and synthetic demo from the repository root:
+Python 3.11 or newer is required. From the repository root in PowerShell:
 
 ```powershell
-cd backend
-python -m unittest discover -s tests -v
-python -m examples.member_c_demo
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e "./backend[dev]"
+Copy-Item .env.example .env
+# Edit .env, including NCBI_EMAIL, before making PubMed requests.
+.\.venv\Scripts\python.exe -m alembic -c backend/alembic.ini upgrade head
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
 
-These modules use the Python standard library; no API key or dependency installation is required. The services accept repository interfaces, with a test double used for verification. A real database adapter and end-to-end application still need to be connected.
+Open [API documentation](http://127.0.0.1:8000/docs) or [health](http://127.0.0.1:8000/api/health). Source previews use the live adapters. The import endpoint currently returns `501 PIPELINE_NOT_READY` until the background runner is connected; direct service imports stop at `awaiting_processing` rather than claiming all processing has completed.
+
+Run offline checks from the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest backend/tests -q
+.\.venv\Scripts\python.exe -m ruff check backend
+.\.venv\Scripts\python.exe -m ruff format --check backend
+```
+
+The default test suite uses synthetic/recorded fixtures, local HTTP stubs, and a temporary SQLite DB. Live tests are opt-in with `EVIDENCEFLOW_LIVE=1`. To run the synthetic engine demo, enter `backend` and run `..\.venv\Scripts\python.exe -m examples.member_c_demo`.
+
+See the [engine integration guide](docs/MEMBER_C.md), [methods contribution](docs/MEMBER_C_REPORT.md), and [combined analysis](docs/INTEGRATION_ANALYSIS.md).
 
 ## Why EvidenceFlow
 
@@ -46,7 +59,7 @@ Systematic review searches change as researchers refine their questions. Re-runn
 - Append-only audit history for reviewer actions and pipeline runs.
 - CSV export of included representative studies.
 
-These are planned capabilities from the project blueprint, not claims about the current codebase.
+These describe the full product target. The integration analysis distinguishes implemented components from the remaining application workflow.
 
 ## Data sources
 
@@ -81,7 +94,7 @@ The actual repository contents and completed milestones should be reflected here
 
 ## Running the project
 
-The engine checks and offline demonstration can be run using the commands above. There is no application server or UI yet. The blueprint proposes a development setup based on `make` targets, but those targets have not been created. Application prerequisites, configuration, database setup, and startup commands will be documented as those components are implemented.
+The API server, migrations, offline checks, and engine demonstration can be run using the commands above. The frontend is not yet runnable. The blueprint’s proposed `make` targets have not been created.
 
 ## Design principles
 

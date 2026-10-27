@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping, Protocol
+from typing import Protocol
 
 from ..engines import pico
-from ..engines.types import Decision, PicoTerms, RecordLite, SpanSuggestion
+from ..engines.types import Decision, PicoTerms, RecordId, RecordLite, SpanSuggestion, record_id_key
 
 
 @dataclass(frozen=True, slots=True)
 class PicoKey:
-    record_id: int
+    record_id: RecordId
     content_hash: str
     algo_version: str
     terms_hash: str
@@ -34,7 +35,9 @@ class PicoRepository(Protocol):
 
     def get_machine_annotations(self, key: PicoKey) -> tuple[SpanSuggestion, ...] | None: ...
 
-    def save_machine_annotations(self, key: PicoKey, annotations: tuple[SpanSuggestion, ...]) -> None: ...
+    def save_machine_annotations(
+        self, key: PicoKey, annotations: tuple[SpanSuggestion, ...]
+    ) -> None: ...
 
 
 class PicoService:
@@ -42,7 +45,11 @@ class PicoService:
         self.repository = repository
 
     def run(
-        self, records: list[RecordLite], *, decisions: Mapping[int, Decision], pico_terms: PicoTerms,
+        self,
+        records: list[RecordLite],
+        *,
+        decisions: Mapping[RecordId, Decision],
+        pico_terms: PicoTerms,
     ) -> tuple[PicoResult, ...]:
         """Process representative records whose effective status is Include/Maybe.
 
@@ -54,7 +61,7 @@ class PicoService:
         if any(value not in {"include", "exclude", "maybe"} for value in decisions.values()):
             raise ValueError("Unknown effective screening decision")
         result = []
-        for record in sorted(records, key=lambda item: item.id):
+        for record in sorted(records, key=lambda item: record_id_key(item.id)):
             if decisions.get(record.id) not in {"include", "maybe"}:
                 continue
             key = PicoKey(record.id, record.input_hash, pico.ALGO_VERSION, pico_terms.input_hash)

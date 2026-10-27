@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import ClassVar
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -20,9 +21,9 @@ EFETCH = (FIXTURES / "pubmed" / "efetch.xml").read_bytes()
 
 
 class StubEutils(BaseHTTPRequestHandler):
-    requests: list[tuple[str, dict[str, list[str]]]] = []
+    requests: ClassVar[list[tuple[str, dict[str, list[str]]]]] = []
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         url = urlparse(self.path)
         params = parse_qs(url.query)
         type(self).requests.append((url.path, params))
@@ -80,7 +81,9 @@ def test_search_over_http(stub_url):
     assert result.skipped_known == 1
     (search_path, search_params), (fetch_path, fetch_params) = StubEutils.requests
     assert search_path.endswith("/esearch.fcgi") and fetch_path.endswith("/efetch.fcgi")
-    assert search_params["term"] == ['"type 2 diabetes"[tiab] AND metformin']  # brackets/quotes survive
+    assert search_params["term"] == [
+        '"type 2 diabetes"[tiab] AND metformin'
+    ]  # brackets/quotes survive
     assert fetch_params["id"] == ["90000001,90000003,90000004"]
     assert fetch_params["email"] == ["team@example.org"]
 

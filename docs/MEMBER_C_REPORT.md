@@ -95,8 +95,8 @@ human pair overrides, transitive conflicts, each supported criterion, Maybe
 defaults, PICO unknown comparators and offsets, stale-input caching, and human
 state preservation. These are software behavior checks on synthetic inputs.
 
-Real database and pipeline integration is pending Member A's schema and
-repository adapters. Live APIs, UI behavior, labeled screening performance,
+Database foundations and a source-record-to-engine mapping are now integrated;
+real machine-result repository adapters and pipeline integration remain pending. Live APIs, UI behavior, labeled screening performance,
 PICO span precision/recall, clinical usefulness, concurrent writes, and actual
 reviewer time savings remain unmeasured. Title blocking can miss spelling
 variants; optional fuzzy mode can add false candidates. Author normalization,

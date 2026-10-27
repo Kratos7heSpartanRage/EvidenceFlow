@@ -34,7 +34,14 @@ from app.adapters.base import (
     clean_text,
     request_json,
 )
-from app.schemas.contracts import Author, PreviewResult, QuerySpec, RecordIn, SearchResult, SourceName
+from app.schemas.contracts import (
+    Author,
+    PreviewResult,
+    QuerySpec,
+    RecordIn,
+    SearchResult,
+    SourceName,
+)
 
 BASE_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 MAX_PAGE_SIZE = 1000
@@ -94,7 +101,9 @@ class EuropePMCAdapter:
                 warnings.append(str(exc))
         return PreviewResult(hit_count=_hit_count(data), records=records, warnings=warnings)
 
-    def search(self, spec: QuerySpec, cap: int, known_ids: frozenset[str] = frozenset()) -> SearchResult:
+    def search(
+        self, spec: QuerySpec, cap: int, known_ids: frozenset[str] = frozenset()
+    ) -> SearchResult:
         if cap < 1:
             raise ValueError("cap must be at least 1")
         ids: list[str] = []
@@ -144,7 +153,9 @@ class EuropePMCAdapter:
 
     # ----------------------------------------------------------------- private
 
-    def _get(self, spec: QuerySpec, *, page_size: int, cursor: str, result_type: str) -> dict[str, Any]:
+    def _get(
+        self, spec: QuerySpec, *, page_size: int, cursor: str, result_type: str
+    ) -> dict[str, Any]:
         params = {
             "query": build_query(spec),
             "format": "json",
@@ -174,11 +185,13 @@ class EuropePMCAdapter:
 def parse_record(item: Any) -> RecordIn:
     """Map one Europe PMC result to RecordIn. Raises ValueError if unusable."""
     if not isinstance(item, dict):
-        raise ValueError("skipped a result that is not an object")
+        raise ValueError("skipped a result that is not an object")  # noqa: TRY004 -- malformed source data, not a caller type error
     src = clean_id(item.get("source"))
     rid = clean_id(item.get("id"))
     if not src or not rid:
-        raise ValueError(f"skipped a result with no source/id (title: {clean_text(item.get('title'))!r})")
+        raise ValueError(
+            f"skipped a result with no source/id (title: {clean_text(item.get('title'))!r})"
+        )
     title = clean_text(item.get("title"))
     if not title:
         raise ValueError(f"skipped {src}:{rid}: no title")
@@ -254,7 +267,11 @@ def _year(item: dict[str, Any], journal_info: dict[str, Any]) -> int | None:
 def _mesh(item: dict[str, Any]) -> list[str]:
     terms = []
     for heading in _as_list(_nested(item, "meshHeadingList", "meshHeading")):
-        name = clean_text(heading.get("descriptorName")) if isinstance(heading, dict) else clean_text(heading)
+        name = (
+            clean_text(heading.get("descriptorName"))
+            if isinstance(heading, dict)
+            else clean_text(heading)
+        )
         if name:
             terms.append(name)
     return terms

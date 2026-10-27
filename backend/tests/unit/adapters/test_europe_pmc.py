@@ -38,8 +38,12 @@ class TestQuerySpecAndBuilder:
         assert q == "(metformin AND placebo) AND (FIRST_PDATE:[2015-01-01 TO 2025-12-31])"
 
     def test_open_start_and_open_end(self):
-        assert "FIRST_PDATE:[1800-01-01 TO 2020-06-30]" in build_query(spec(date_to=date(2020, 6, 30)))
-        assert "FIRST_PDATE:[2020-01-01 TO 2999-12-31]" in build_query(spec(date_from=date(2020, 1, 1)))
+        assert "FIRST_PDATE:[1800-01-01 TO 2020-06-30]" in build_query(
+            spec(date_to=date(2020, 6, 30))
+        )
+        assert "FIRST_PDATE:[2020-01-01 TO 2999-12-31]" in build_query(
+            spec(date_from=date(2020, 1, 1))
+        )
 
     def test_title_abstract_scope_wraps_expression(self):
         q = build_query(spec(title_abstract_only=True))
@@ -81,7 +85,11 @@ class TestParseRecord:
         assert r.journal == "Journal of Example Endocrinology"
         assert (r.volume, r.issue, r.pages) == ("12", "4", "101-110")
         assert r.language == "eng"
-        assert [a.full_name for a in r.authors] == ["Rao A", "Kim B", "Example Diabetes Trial Group"]
+        assert [a.full_name for a in r.authors] == [
+            "Rao A",
+            "Kim B",
+            "Example Diabetes Trial Group",
+        ]
         assert r.authors[0].last_name == "Rao"
         assert "Randomized Controlled Trial" in r.pub_types
         assert r.mesh_terms == ["Humans", "Metformin", "Diabetes Mellitus, Type 2"]

@@ -63,7 +63,9 @@ def test_title_abstract_scope_narrows_results():
     assert preview.hit_count == scoped and preview.records
     for record in preview.records:
         text = f"{record.title} {record.abstract or ''}".lower()
-        assert "metformin" in text, f"{record.source_record_id} has no 'metformin' in title/abstract"
+        assert "metformin" in text, (
+            f"{record.source_record_id} has no 'metformin' in title/abstract"
+        )
 
 
 def test_known_ids_are_skipped_on_rerun():

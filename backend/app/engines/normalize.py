@@ -26,8 +26,8 @@ def normalize_pmid(value: str | int | None) -> str | None:
     if value is None or isinstance(value, bool):
         return None
     text = str(value).strip()
-    text = re.sub(r"^https?://pubmed\.ncbi\.nlm\.nih\.gov/", "", text, flags=re.I)
-    text = re.sub(r"^pmid\s*:\s*", "", text, flags=re.I).rstrip("/ .")
+    text = re.sub(r"^https?://pubmed\.ncbi\.nlm\.nih\.gov/", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"^pmid\s*:\s*", "", text, flags=re.IGNORECASE).rstrip("/ .")
     # Do not concatenate unrelated digits from malformed identifiers.
     if not re.fullmatch(r"[0-9]+", text) or int(text) == 0:
         return None

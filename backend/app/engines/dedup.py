@@ -4,18 +4,20 @@ from __future__ import annotations
 
 import hashlib
 from collections import defaultdict
+from collections.abc import Iterable
 from itertools import combinations
-from typing import Iterable
 
 from .normalize import normalize_author, normalize_doi, normalize_pmid, normalize_title
-from .types import PairResult, RecordLite
+from .types import PairResult, RecordId, RecordLite, record_id_key
 
 ALGO_VERSION = "dedup-rules-1"
 
 
 def _conference(record: RecordLite) -> bool:
     return any(
-        any(term in normalize_title(kind) for term in ("congress", "conference", "meeting abstract"))
+        any(
+            term in normalize_title(kind) for term in ("congress", "conference", "meeting abstract")
+        )
         for kind in record.pub_types
     )
 
@@ -36,8 +38,10 @@ def _score(a: RecordLite, b: RecordLite, include_fuzzy: bool) -> PairResult | No
     matched: list[str] = []
     conflicts: list[str] = []
     for name, first, second in (
-        ("doi", doi_a, doi_b), ("pmid", pmid_a, pmid_b),
-        ("title", title_a, title_b), ("first_author", author_a, author_b),
+        ("doi", doi_a, doi_b),
+        ("pmid", pmid_a, pmid_b),
+        ("title", title_a, title_b),
+        ("first_author", author_a, author_b),
         ("year", a.year, b.year),
     ):
         if first is not None and first != "" and second is not None and second != "":
@@ -79,12 +83,16 @@ def _score(a: RecordLite, b: RecordLite, include_fuzzy: bool) -> PairResult | No
         explanation = "Exact identifier or matching title, year, and first author."
     else:
         explanation = "Bibliographic similarity is incomplete; reviewer confirmation required."
-    return PairResult(a.id, b.id, method, score, tier, tuple(matched), tuple(conflicts), explanation)
+    return PairResult(
+        a.id, b.id, method, score, tier, tuple(matched), tuple(conflicts), explanation
+    )
 
 
 def score_pairs(
-    records: list[RecordLite], *, include_fuzzy: bool = False,
-    changed_ids: Iterable[int] | None = None,
+    records: list[RecordLite],
+    *,
+    include_fuzzy: bool = False,
+    changed_ids: Iterable[RecordId] | None = None,
 ) -> list[PairResult]:
     """Score blocked pairs; optionally return only pairs touching changed records.
 
@@ -99,10 +107,13 @@ def score_pairs(
     changed = None if changed_ids is None else set(changed_ids)
     if changed is not None and not changed <= by_id.keys():
         raise ValueError("Changed ids must belong to the supplied active record set")
-    blocks: dict[tuple, list[int]] = defaultdict(list)
+    blocks: dict[tuple, list[RecordId]] = defaultdict(list)
     title_blocks: dict[str, list[RecordLite]] = defaultdict(list)
     for record in records:
-        for kind, value in (("doi", normalize_doi(record.doi)), ("pmid", normalize_pmid(record.pmid))):
+        for kind, value in (
+            ("doi", normalize_doi(record.doi)),
+            ("pmid", normalize_pmid(record.pmid)),
+        ):
             if value:
                 blocks[kind, value].append(record.id)
         title = normalize_title(record.title)
@@ -111,15 +122,17 @@ def score_pairs(
         if include_fuzzy and record.year is not None:
             for token in set(title.split()):
                 blocks["token_year", token, record.year].append(record.id)
-    candidates: set[tuple[int, int]] = set()
+    candidates: set[tuple[RecordId, RecordId]] = set()
     for members in blocks.values():
-        candidates.update(combinations(sorted(members), 2))
+        candidates.update(combinations(sorted(members, key=record_id_key), 2))
     for members in title_blocks.values():
         for a, b in combinations(members, 2):
             if a.year is None or b.year is None or abs(a.year - b.year) <= 1:
-                candidates.add(tuple(sorted((a.id, b.id))))
+                candidates.add(tuple(sorted((a.id, b.id), key=record_id_key)))
     result = []
-    for a_id, b_id in sorted(candidates):
+    for a_id, b_id in sorted(
+        candidates, key=lambda pair: (record_id_key(pair[0]), record_id_key(pair[1]))
+    ):
         if changed is not None and a_id not in changed and b_id not in changed:
             continue
         pair = _score(by_id[a_id], by_id[b_id], include_fuzzy)
@@ -128,7 +141,9 @@ def score_pairs(
     return result
 
 
-def group(record_ids: Iterable[int], edges: Iterable[tuple[int, int]]) -> list[set[int]]:
+def group(
+    record_ids: Iterable[RecordId], edges: Iterable[tuple[RecordId, RecordId]]
+) -> list[set[RecordId]]:
     """Connected components, including singleton records, in stable id order."""
     ids = set(record_ids)
     adjacency = {record_id: set() for record_id in ids}
@@ -142,7 +157,7 @@ def group(record_ids: Iterable[int], edges: Iterable[tuple[int, int]]) -> list[s
     remaining = set(ids)
     groups = []
     while remaining:
-        pending, members = [min(remaining)], set()
+        pending, members = [min(remaining, key=record_id_key)], set()
         while pending:
             current = pending.pop()
             if current not in members:
@@ -153,20 +168,26 @@ def group(record_ids: Iterable[int], edges: Iterable[tuple[int, int]]) -> list[s
     return groups
 
 
-def group_key(record_ids: Iterable[int]) -> str:
+def group_key(record_ids: Iterable[RecordId]) -> str:
     """Membership key compatible with the blueprint's immutable snapshots."""
-    members = sorted(set(record_ids))
+    members = sorted(set(record_ids), key=record_id_key)
     if not members:
         raise ValueError("A group cannot be empty")
-    return hashlib.sha1(",".join(map(str, members)).encode("ascii")).hexdigest()
+    return hashlib.sha1(",".join(map(str, members)).encode("utf-8")).hexdigest()
 
 
-def representative(records: Iterable[RecordLite], pinned_ids: Iterable[int] = ()) -> int:
+def representative(records: Iterable[RecordLite], pinned_ids: Iterable[RecordId] = ()) -> RecordId:
     """Pin first, then abstract, DOI, PubMed, and lowest stable record id."""
     values, pins = list(records), set(pinned_ids)
     if not values:
         raise ValueError("A group cannot be empty")
-    return min(values, key=lambda r: (
-        r.id not in pins, not bool((r.abstract or "").strip()),
-        not bool(normalize_doi(r.doi)), r.source.casefold() != "pubmed", r.id,
-    )).id
+    return min(
+        values,
+        key=lambda r: (
+            r.id not in pins,
+            not bool((r.abstract or "").strip()),
+            not bool(normalize_doi(r.doi)),
+            r.source.casefold() != "pubmed",
+            record_id_key(r.id),
+        ),
+    ).id
