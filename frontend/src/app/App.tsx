@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './Header';
 import { Sidebar, NavTab } from './Sidebar';
+import { LandingPage } from '../features/landing/LandingPage';
 import { ReviewSetup } from '../features/reviews/ReviewSetup';
 import { SearchBuilder } from '../features/search/SearchBuilder';
 import { DuplicatesQueue } from '../features/duplicates/DuplicatesQueue';
@@ -14,6 +15,7 @@ import { api } from '../lib/api';
 import { Review } from '../types/api';
 
 export function App() {
+  const [view, setView] = useState<'landing' | 'workspace'>('landing');
   const [activeTab, setActiveTab] = useState<NavTab>('setup');
   const [review, setReview] = useState<Review | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -35,10 +37,18 @@ export function App() {
     setRefreshKey(prev => prev + 1);
   };
 
+  // If in landing mode, render the stunning LandingPage
+  if (view === 'landing') {
+    return <LandingPage onEnterWorkspace={() => setView('workspace')} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-brand-500 selection:text-white">
       {/* Top Header */}
-      <Header onRefresh={handleRefresh} />
+      <Header
+        onRefresh={handleRefresh}
+        onBackToLanding={() => setView('landing')}
+      />
 
       {/* Main Container: Sidebar + Content */}
       <div className="flex-1 flex overflow-hidden">
@@ -50,12 +60,16 @@ export function App() {
 
         {/* Viewport Content */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-gradient-to-b from-slate-950 via-slate-900/40 to-slate-950">
-          {activeTab === 'setup' && <ReviewSetup />}
+          {activeTab === 'setup' && (
+            <ReviewSetup onProceedToSearch={() => setActiveTab('search')} />
+          )}
           {activeTab === 'search' && <SearchBuilder />}
           {activeTab === 'duplicates' && <DuplicatesQueue />}
           {activeTab === 'screening' && <ScreeningQueue />}
           {activeTab === 'pico' && <PicoWorkspace />}
-          {activeTab === 'history' && <HistoryDiffView onNavigateToConflicts={() => setActiveTab('conflicts')} />}
+          {activeTab === 'history' && (
+            <HistoryDiffView onNavigateToConflicts={() => setActiveTab('conflicts')} />
+          )}
           {activeTab === 'conflicts' && <ConflictsWorkspace />}
           {activeTab === 'audit' && <AuditTrail />}
           {activeTab === 'export' && <ExportView />}

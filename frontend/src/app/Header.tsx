@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { getActiveReviewer, setActiveReviewer, api, mockStore } from '../lib/api';
-import { User, Activity, RotateCcw, ShieldCheck, ChevronDown, Check } from 'lucide-react';
+import { User, Activity, RotateCcw, ShieldCheck, ChevronDown, Check, Home, ArrowLeft } from 'lucide-react';
 
 interface HeaderProps {
   onRefresh: () => void;
+  onBackToLanding?: () => void;
 }
 
-export function Header({ onRefresh }: HeaderProps) {
+export function Header({ onRefresh, onBackToLanding }: HeaderProps) {
   const [reviewer, setReviewer] = useState(getActiveReviewer());
   const [healthMode, setHealthMode] = useState<'live' | 'mock'>('mock');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -39,24 +40,43 @@ export function Header({ onRefresh }: HeaderProps) {
 
   return (
     <header className="h-16 px-6 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-40">
-      {/* Brand & Subtitle */}
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-brand-950/60 font-bold text-white text-sm">
-          EF
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-base font-extrabold text-slate-100 tracking-tight">EvidenceFlow</h1>
-            <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700">
-              Mini-Rayyan v2.0
-            </span>
+      {/* Brand & Subtitle & Back to Landing */}
+      <div className="flex items-center gap-4">
+        {onBackToLanding && (
+          <button
+            onClick={onBackToLanding}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition"
+            title="Return to Landing Page"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Overview</span>
+          </button>
+        )}
+
+        <div
+          onClick={onBackToLanding}
+          className="flex items-center gap-3 cursor-pointer group"
+          title="Click to go to Overview"
+        >
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-brand-950/60 font-bold text-white text-sm group-hover:scale-105 transition">
+            EF
           </div>
-          <p className="text-[11px] text-slate-400">Auditable Systematic Review Workspace</p>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-extrabold text-slate-100 tracking-tight group-hover:text-brand-300 transition">
+                EvidenceFlow
+              </h1>
+              <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                Workspace
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">Mini-Rayyan Systematic Review</p>
+          </div>
         </div>
       </div>
 
       {/* Center/Right Controls */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {/* Backend status badge */}
         <div
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium border ${
@@ -67,7 +87,7 @@ export function Header({ onRefresh }: HeaderProps) {
           title={healthMode === 'live' ? 'Connected to live FastAPI backend' : 'Running in local verified mock state for instant demo'}
         >
           <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
-          <span>{healthMode === 'live' ? 'Backend Live' : 'Demo Mode (Full State)'}</span>
+          <span className="hidden sm:inline">{healthMode === 'live' ? 'Backend Live' : 'Demo Mode (Full State)'}</span>
         </div>
 
         {/* Reset Mock State Button */}
@@ -77,7 +97,7 @@ export function Header({ onRefresh }: HeaderProps) {
           title="Reset sample data back to baseline"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Reset Demo</span>
+          <span className="hidden md:inline">Reset Demo</span>
         </button>
 
         {/* Active Reviewer Selector Dropdown */}
