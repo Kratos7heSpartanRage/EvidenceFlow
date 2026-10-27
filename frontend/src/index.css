@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+  }
+  code, pre {
+    font-family: "JetBrains Mono", monospace;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}::-webkit-scrollbar-thumb {
+  background: rgba(51, 65, 85, 0.8);
+  border-radius: 9999px;
+}::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.9);
+}
+
+.glass-panel {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: rgba(30, 41, 59, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-hover {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}.glass-hover:hover {
+  background: rgba(51, 65, 85, 0.7);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.pico-span-p {
+  background-color: rgba(59, 130, 246, 0.22);
+  color: #93c5fd;
+  border-bottom: 2px solid #3b82f6;
+  border-radius: 2px;
+  padding: 0 4px;
+  font-weight: 500;
+}
+.pico-span-i {
+  background-color: rgba(16, 185, 129, 0.22);
+  color: #6ee7b7;
+  border-bottom: 2px solid #10b981;
+  border-radius: 2px;
+  padding: 0 4px;
+  font-weight: 500;
+}
+.pico-span-c {
+  background-color: rgba(245, 158, 11, 0.22);
+  color: #fcd34d;
+  border-bottom: 2px solid #f59e0b;
+  border-radius: 2px;
+  padding: 0 4px;
+  font-weight: 500;
+}
+.pico-span-o {
+  background-color: rgba(236, 72, 153, 0.22);
+  color: #f472b6;
+  border-bottom: 2px solid #ec4899;
+  border-radius: 2px;
+  padding: 0 4px;
+  font-weight: 500;
+}
