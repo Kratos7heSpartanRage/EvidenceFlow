@@ -64,3 +64,10 @@ class QueryDiffResponse(BaseModel):
     dropped_records_count: int
     already_screened_retained_count: int
     potential_conflicts_count: int
+
+
+class QueryRevertResponse(BaseModel):
+    status: str = "reverted"
+    restored_version_id: str
+    restored_records_count: int | None = None
+    hidden_records_count: int | None = None

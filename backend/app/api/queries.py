@@ -10,6 +10,7 @@ from app.schemas.query import (
     QueryImportResponse,
     QueryPreviewResponse,
     QueryResponse,
+    QueryRevertResponse,
 )
 from app.services.query_service import QueryService
 
@@ -81,3 +82,15 @@ def diff_query(
 ):
     service = QueryService(db)
     return service.compute_diff(query_id=query_id, against_id=against)
+
+
+@router.post(
+    "/queries/{query_id}/revert",
+    response_model=QueryRevertResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Exact, zero-API revert to query version workspace snapshot",
+)
+def revert_query(query_id: str, db: Session = Depends(get_db)):
+    """Restores workspace to the exact state captured in GroupSnapshot for this query version."""
+    service = QueryService(db)
+    return service.revert_query(query_id)

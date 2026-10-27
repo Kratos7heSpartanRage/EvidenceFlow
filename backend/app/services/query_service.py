@@ -19,6 +19,7 @@ from app.schemas.query import (
     QueryImportResponse,
     QueryPreviewResponse,
     QueryResponse,
+    QueryRevertResponse,
 )
 from app.services.audit_service import AuditService
 from app.services.source_service import source_adapter
@@ -336,3 +337,70 @@ class QueryService:
             raise ValidationError("Compared queries must belong to the same review.")
 
         return self.query_repo.compute_diff(query_id, against_id)
+
+    def revert_query(self, query_id: str, actor: str = "Reviewer") -> QueryRevertResponse:
+        """Exact, zero-API revert (Scenario E).
+
+        Restores workspace to the exact state captured in GroupSnapshot at the completion
+        of query_id. Records present in snapshot are unhidden and restored to snapshot groups;
+        records not present in snapshot are soft-hidden. ZERO external calls are made.
+        """
+        query = self.query_repo.get(query_id)
+        if not query:
+            raise NotFoundError(f"Query version '{query_id}' was not found.")
+
+        # Load snapshots for target query version
+        from app.models.dedup import GroupSnapshot
+
+        snapshots = (
+            self.db.query(GroupSnapshot).filter(GroupSnapshot.query_version_id == query_id).all()
+        )
+        if not snapshots:
+            raise ValidationError(
+                f"Cannot revert to query '{query_id}': no group snapshot exists for this query version."
+            )
+
+        # Build fast O(1) lookup dictionary for snapshot records
+        snapshot_by_record = {s.record_id: s for s in snapshots}
+
+        # Fetch all records in this review
+        records = self.db.query(Record).filter(Record.review_id == query.review_id).all()
+
+        restored_count = 0
+        hidden_count = 0
+
+        for r in records:
+            if r.id in snapshot_by_record:
+                snap = snapshot_by_record[r.id]
+                r.is_hidden = False
+                r.group_id = snap.group_id
+                r.is_representative = str(snap.is_representative).lower() == "true"
+                restored_count += 1
+            else:
+                r.is_hidden = True
+                hidden_count += 1
+
+        # Audit event
+        self.audit.log(
+            review_id=query.review_id,
+            actor=actor,
+            event_type="query_reverted",
+            target_type="query_version",
+            target_id=query.id,
+            before_state=None,
+            after_state={
+                "restored_version_id": query.id,
+                "version_number": query.version_number,
+                "restored_records_count": restored_count,
+                "hidden_records_count": hidden_count,
+            },
+            note=f"Zero-API rollback to Query v{query.version_number} ({query.label})",
+        )
+
+        self.db.commit()
+        return QueryRevertResponse(
+            status="reverted",
+            restored_version_id=query.id,
+            restored_records_count=restored_count,
+            hidden_records_count=hidden_count,
+        )
