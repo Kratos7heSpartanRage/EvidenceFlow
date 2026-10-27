@@ -1,0 +1,11 @@
+{
+  "header": {"type": "esearch", "version": "0.3"},
+  "esearchresult": {
+    "count": "4",
+    "retmax": "4",
+    "retstart": "0",
+    "idlist": ["90000001", "90000002", "90000003", "90000004"],
+    "translationset": [],
+    "querytranslation": "metformin[All Fields] AND placebo[All Fields]"
+  }
+}
