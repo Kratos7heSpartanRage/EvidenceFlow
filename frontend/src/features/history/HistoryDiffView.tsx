@@ -7,14 +7,17 @@ import type { EntityId } from '../../types/api';
 export function HistoryDiffView({ onNavigateToConflicts }: { onNavigateToConflicts?: () => void; }) {
   const { reviewId } = useWorkspace();
   const [queries] = useData(['queries'], () => api.getQueries(reviewId));
-  const [fromId, setFromId] = useState<EntityId>(queries[0]?.id || '');
-  const [toId, setToId] = useState<EntityId>(queries[queries.length - 1]?.id || '');
-  const [restoreId, setRestoreId] = useState<EntityId>(queries[0]?.id || '');
+  const [fromId, setFromId] = useState<EntityId>('');
+  const [toId, setToId] = useState<EntityId>('');
+  const [restoreId, setRestoreId] = useState<EntityId>('');
+  const effectiveFromId = fromId || queries[0]?.id || '';
+  const effectiveToId = toId || queries[queries.length - 1]?.id || '';
+  const effectiveRestoreId = restoreId || queries[0]?.id || '';
   const [confirm, setConfirm] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState('');
-  const [diff] = useData(['diff', fromId, toId], () => fromId && toId && fromId !== toId ? api.getDiff(toId, fromId) : Promise.resolve(null));
-  const restore = queries.find(q => q.id === restoreId);
+  const [diff] = useData(['diff', effectiveFromId, effectiveToId], () => effectiveFromId && effectiveToId && effectiveFromId !== effectiveToId ? api.getDiff(effectiveToId, effectiveFromId) : Promise.resolve(null));
+  const restore = queries.find(q => q.id === effectiveRestoreId);
   const revert = useAction(async () => {
     if (!restore || pending) return;
     try {
@@ -32,8 +35,8 @@ export function HistoryDiffView({ onNavigateToConflicts }: { onNavigateToConflic
     </div>
     {!queries.length ? <p className="p-6 text-slate-400">Create and import a query in Search before comparing or restoring versions.</p> : <>
       <div className="flex flex-wrap gap-4">
-        <label>From version<select className="block p-2 mt-2 bg-slate-900 rounded border border-slate-700" value={fromId} onChange={e => setFromId(e.target.value)}>{options}</select></label>
-        <label>To version<select className="block p-2 mt-2 bg-slate-900 rounded border border-slate-700" value={toId} onChange={e => setToId(e.target.value)}>{options}</select></label>
+        <label>From version<select className="block p-2 mt-2 bg-slate-900 rounded border border-slate-700" value={effectiveFromId} onChange={e => setFromId(e.target.value)}>{options}</select></label>
+        <label>To version<select className="block p-2 mt-2 bg-slate-900 rounded border border-slate-700" value={effectiveToId} onChange={e => setToId(e.target.value)}>{options}</select></label>
       </div>
       {diff ? <div className="grid sm:grid-cols-3 gap-4">{[
         ['New records', diff.records_added], ['Retained records', diff.already_present],
@@ -43,7 +46,7 @@ export function HistoryDiffView({ onNavigateToConflicts }: { onNavigateToConflic
         <button className="p-4 rounded-xl border border-slate-700 text-brand-300" onClick={onNavigateToConflicts}>Review conflicts</button>
       </div> : <p className="text-slate-400">Select two different versions to compare their stored results.</p>}
       <div className="p-5 bg-slate-900 border border-slate-800 rounded-xl space-y-3">
-        <label className="block">Restore saved version<select className="block p-2 mt-2 bg-slate-950 rounded border border-slate-700" value={restoreId} onChange={e => setRestoreId(e.target.value)}>{options}</select></label>
+        <label className="block">Restore saved version<select className="block p-2 mt-2 bg-slate-950 rounded border border-slate-700" value={effectiveRestoreId} onChange={e => setRestoreId(e.target.value)}>{options}</select></label>
         <p className="text-sm text-slate-400">Restore a version after its import completes. Records outside its snapshot become hidden.</p>
         <button disabled={!restore || restore.imported_count == null} className="px-4 py-2 rounded bg-brand-600 disabled:opacity-40" onClick={() => setConfirm(true)}>Restore v{restore?.version_no}</button>
       </div>
