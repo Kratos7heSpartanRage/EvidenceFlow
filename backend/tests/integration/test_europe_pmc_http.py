@@ -107,4 +107,6 @@ def test_unreachable_host_is_a_network_error(monkeypatch):
     adapter = make_adapter("http://127.0.0.1:9/nothing-listens-here")
     with pytest.raises(SourceError) as err:
         adapter.count(spec())
-    assert err.value.kind == "network"
+    # Linux refuses the connection at once ("network"); Windows retries the
+    # connect until the timeout ("timeout"). Both are correct typed failures.
+    assert err.value.kind in {"network", "timeout"}

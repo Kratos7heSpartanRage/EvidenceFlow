@@ -1,3 +1,5 @@
+> Historical note retained from the previous baseline. Current behavior is described in ../PR_RECONCILIATION_OCT28.md and ../API_CONTRACTS.md.
+
 > **PR #8 follow-up:** Database candidate storage, duplicate review routes, constrained grouping, and immutable first-import snapshots are now integrated. The original analysis below records the earlier baseline; see `PR8_INTEGRATION.md` for the updated behavior and remaining limits.
 
 # Combined backend analysis — 27 October 2026

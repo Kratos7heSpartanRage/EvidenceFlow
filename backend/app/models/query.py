@@ -23,6 +23,7 @@ class QueryVersion(Base):
     synonyms = Column(Boolean, nullable=False, default=True)
     title_abstract_only = Column(Boolean, nullable=False, default=False)
     preview_payload = Column(JSON, nullable=True)
+    snapshot_captured = Column(Boolean, nullable=False, default=False)
     date_from = Column(String(10), nullable=True)
     date_to = Column(String(10), nullable=True)
     language = Column(String(10), nullable=True, default="eng")

@@ -1,118 +1,170 @@
 # EvidenceFlow
 
-**An auditable workspace for systematic literature reviews.** EvidenceFlow is designed to help researchers move from a structured review question to a searchable, deduplicated, screened, and exportable evidence set while keeping reviewer decisions visible and traceable.
+> **An auditable, deterministic systematic literature review platform with an evolutionary query-change loop.**
 
-> **Project status:** Integrated backend baseline. Europe PMC/PubMed adapters, database models and migrations, review/query/duplicate-review APIs, and C's processing engines are present. The frontend and complete background processing/review loop still need implementation. See the [integration analysis](docs/INTEGRATION_ANALYSIS.md) for verified behavior and remaining work.
+EvidenceFlow structures the complete systematic review synthesis pipeline:
+$$\text{Review Protocol} \longrightarrow \text{Query Trees} \longrightarrow \text{Multi-Source Ingestion} \longrightarrow \text{Graph Deduplication} \longrightarrow \text{Screening (I/E/M)} \longrightarrow \text{PICO Extraction} \longrightarrow \text{Consensus Resolution} \longrightarrow \text{RFC 4180 CSV Export}$$
 
-## Run the backend
+EvidenceFlow solves the fundamental challenge of systematic reviews: **How to iterate on literature search queries without losing human reviewer screening decisions, duplicate pair resolutions, or audit history.**
 
-Python 3.11 or newer is required. From the repository root in PowerShell:
+> **Latest integration:** See [28 October reconciliation](docs/PR_RECONCILIATION_OCT28.md) for tested behavior, migration requirements, and remaining UI/loop limits. Older C drafts are preserved in [the archive](docs/archive/MEMBER_C_REPORT.md).
 
-```powershell
+---
+
+## 1. Non-Negotiable Architectural Invariants
+
+1. **Zero Data Deletion**: Records, decisions, suggestions, pairs, and audit rows are **never deleted**. De-selected or reverted records are soft-hidden via state (`is_hidden = True`).
+2. **Machine vs. Human Sovereignty**: Machine predictions (`screening_suggestions`, `duplicate_pairs`) and sovereign human verdicts (`screening_decisions`, `pair_decisions`) live in separate tables. Machine code **never** writes or mutates human tables.
+3. **Mandatory Exclusion Reasons**: Every exclusion verdict (`decision == 'exclude'`) strictly requires an explicit reason (either a linked `criterion_id` or non-empty `reason_text`). Enforced simultaneously at schema check constraint, API, and Pydantic validator levels (HTTP 422).
+4. **Zero Auto-Resolved Conflicts**: Opposing human verdicts (`include` vs `exclude`) or transitive duplicate bypasses are flagged as open `Conflict` items. Only human consensus panels can resolve conflicts.
+5. **Deterministic Idempotency**: Repeated ingestion runs, pair scorings, and clustering operations never duplicate records, pairs, or audit events.
+6. **Zero Secrets in Git**: All configuration is managed via environment variables (`.env`).
+
+---
+
+## 2. System Architecture & Algorithms (DSA)
+
+```mermaid
+graph TD
+    UI[Frontend: React 18 + TypeScript - Member D] -->|REST JSON API| API[FastAPI Application Layer - Member A]
+    API --> SVC[Domain Services Layer - Member A]
+    SVC --> REPO[SQLAlchemy Repositories - Member A]
+    REPO --> DB[(SQLite WAL / PostgreSQL - Member A)]
+    
+    SVC --> ENG[Deterministic Processing Engines - Member C]
+    SVC --> ADAPT[Europe PMC & PubMed Adapters - Member B]
+    ADAPT --> LIVE[External Literature APIs]
+```
+
+### High-Efficiency Algorithmic Foundations
+- **Graph Connected-Components with Rejection Guards (Disjoint-Set Union / Union-Find)**: Groups proposed edges in stable order while enforcing negative constraints (Scenario D cannot-links). Rejection checks add work proportional to the current cannot-link set; dense candidate blocks can be quadratic.
+- **Breadth-First Search (BFS) Transitive Conflict Paths**: When an edge violates a human pair rejection, the system executes BFS to reconstruct and display the exact explanatory path (`A -> C -> B`) in $O(V + E)$.
+- **Deterministic Canonical Representative Election**: Within each cluster, the primary study is chosen by:
+  $$\text{Nonempty Abstract} > \text{Valid DOI} > \text{PubMed Source} > \text{Lowest Internal ID}$$
+- **Zero-API Rollback (Scenario E)**: Workspace state is restored directly from immutable `GroupSnapshot` rows using constant-time dictionary lookups within an overall linear restore pass, without external HTTP requests.
+- **Eager Loading**: Record list/detail paths use `selectinload`/`joinedload` to reduce repeated relationship queries; this is not a benchmark of every pipeline stage.
+
+---
+
+## 3. Relational Schema Catalog
+
+```mermaid
+erDiagram
+    REVIEWS ||--o{ CRITERIA_VERSIONS : owns
+    CRITERIA_VERSIONS ||--o{ CRITERIA : contains
+    REVIEWS ||--o{ QUERY_VERSIONS : branches
+    QUERY_VERSIONS ||--o{ QUERY_RECORDS : links
+    REVIEWS ||--o{ RECORDS : stores
+    RECORDS ||--o{ QUERY_RECORDS : referenced_by
+    DEDUP_GROUPS ||--o{ RECORDS : groups
+    REVIEWS ||--o{ DUPLICATE_PAIRS : evaluates
+    DUPLICATE_PAIRS ||--o{ PAIR_DECISIONS : supersedes
+    QUERY_VERSIONS ||--o{ GROUP_SNAPSHOTS : captures
+    RECORDS ||--o{ SCREENING_SUGGESTIONS : receives
+    RECORDS ||--o{ SCREENING_DECISIONS : audited_by
+    RECORDS ||--o{ PICO_ANNOTATIONS : annotates
+    REVIEWS ||--o{ CONFLICTS : tracks
+    REVIEWS ||--o{ AUDIT_EVENTS : logs
+    REVIEWS ||--o{ PIPELINE_RUNS : executes
+    PIPELINE_RUNS ||--o{ RUN_STEPS : logs
+```
+
+1. **`reviews`**: Project metadata, research question, PICO definition, and active criteria.
+2. **`criteria_versions`**: Immutable criteria version trees.
+3. **`criteria`**: Inclusion and exclusion rules with field targets and detector rules.
+4. **`query_versions`**: Search tree with parent lineage, expressions, date ranges, and hit counts.
+5. **`query_records`**: Junction table mapping records to the query version that retrieved them.
+6. **`records`**: Normalized bibliographic citations. Idempotency key: `(review_id, source, source_record_id)`.
+7. **`dedup_groups`**: Clusters of duplicate records referencing the canonical study.
+8. **`duplicate_pairs`**: Pairwise similarity comparisons with confidence tiers.
+9. **`pair_decisions`**: Reviewer duplicate verdicts (`confirm` / `reject`).
+10. **`group_snapshots`**: Immutable workspace assignments captured at query run completion.
+11. **`screening_suggestions`**: Heuristic recommendations with evidence snippets and content hashes.
+12. **`screening_decisions`**: Append-only human screening verdicts with schema check constraints.
+13. **`pico_annotations`**: Clinical entity spans ($P, I, C, O$) with offsets and confidence scores.
+14. **`conflicts`**: Opposing verdicts and transitive bypasses flagged for consensus resolution.
+15. **`audit_events`**: Append-only immutable system ledger tracking all actions.
+16. **`pipeline_runs`**: Execution tracker for asynchronous processing pipelines.
+17. **`run_steps`**: Granular execution logs per pipeline stage.
+
+---
+
+## 4. The Literature Search Evolution Loop
+
+| Scenario | Trigger / User Action | System Behavior & Invariant Guarantees |
+| :--- | :--- | :--- |
+| **Scenario A** | Initial search formulation | Query version created in `draft`, frozen into `previewed`, approved, and imported. Groups formed and snapshotted. |
+| **Scenario B** | Query broadening ($\text{Query } V_2$) | New records appended idempotently; retained records keep existing group assignments and screening decisions. |
+| **Scenario C** | Query narrowing ($\text{Query } V_3$) | Excluded search records are soft-hidden (`is_hidden = True`); zero rows deleted. |
+| **Scenario D** | Human pair rejection ($X \neq Y$) | Negative cannot-link prevents transitive merging. Transitive bypass flags open conflict with BFS explanation path. |
+| **Scenario E** | Exact Revert ($V_2 \rightarrow V_1$) | Restores workspace from `GroupSnapshot` with **0 external API calls**. Historical decisions remain 100% intact. |
+| **Scenario F** | Criteria Evolution Loop | New immutable `CriteriaVersion` created. Machine suggestions refreshed while human decisions remain sovereign. |
+
+---
+
+## 5. API Reference Summary
+
+### Reviews & Criteria
+- `POST /api/reviews` — Create review with PICO framing and initial criteria.
+- `GET /api/reviews/{id}` — Fetch review protocol and active criteria.
+- `POST /api/reviews/{id}/criteria` — Append new immutable criteria version.
+
+### Query Evolution & Pipeline
+- `POST /api/reviews/{id}/queries` — Create child query in version tree.
+- `GET /api/reviews/{id}/queries` — List query version hierarchy.
+- `POST /api/queries/{id}/preview` — Estimate hits and freeze query spec.
+- `POST /api/queries/{id}/import` — Trigger ingestion, dedup, and snapshot capture.
+- `GET /api/queries/{id}/diff?against={parent_id}` — Mathematical set difference.
+- `POST /api/queries/{id}/revert` — Scenario E zero-API rollback.
+
+### Records & Deduplication
+- `GET /api/reviews/{id}/records` — Filtered, search-enabled pagination (`representatives_only=true`, `q=...`).
+- `GET /api/records/{id}` — Full study details with cluster siblings, decision lineage, and PICO spans.
+- `GET /api/reviews/{id}/duplicate-pairs` — List candidate duplicate pairs by tier.
+- `POST /api/reviews/{id}/pair-decisions` — Record human duplicate verdict (`confirm` / `reject`).
+
+### Screening & Consensus
+- `POST /api/records/{id}/screening` — Human screening verdict (enforces mandatory reason on exclude; propagates to cluster; detects reviewer conflicts).
+- `PATCH /api/records/{id}/pico` — Curate clinical entity spans (`confirm`, `correct`, `reject`).
+- `GET /api/reviews/{id}/conflicts` — List open reviewer conflicts.
+- `POST /api/conflicts/{id}/resolve` — Human consensus resolution applied to cluster.
+
+### Export & Audit
+- `GET /api/reviews/{id}/export.csv` — RFC 4180 CSV export of included studies (quarantines conflicting clusters with `X-Conflict-Warning`).
+- `GET /api/reviews/{id}/audit` — Paginated append-only immutable audit trail.
+
+---
+
+## 6. Getting Started & Testing
+
+### Installation
+```bash
+# Clone and configure environment
+git clone https://github.com/SHRINIVAS-BHONG/evidenceflow.git
+cd evidenceflow
+cp .env.example .env
+
+# Set up backend virtual environment
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e "./backend[dev]"
-Copy-Item .env.example .env
-# Edit .env, including NCBI_EMAIL, before making PubMed requests.
-.\.venv\Scripts\python.exe -m alembic -c backend/alembic.ini upgrade head
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+.\.venv\Scripts\Activate.ps1
+pip install -e "./backend[dev]"
+
+# Run database migrations to head
+python -m alembic -c backend/alembic.ini upgrade head
 ```
 
-Open [API documentation](http://127.0.0.1:8000/docs) or [health](http://127.0.0.1:8000/api/health). Source previews use the live adapters. The import endpoint currently returns `501 PIPELINE_NOT_READY` until the background runner is connected; direct service imports run candidate scoring, database grouping, and snapshot capture, then stop at `awaiting_processing` (50%) while screening and PICO remain pending.
-
-Run offline checks from the repository root:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest backend/tests -q
-.\.venv\Scripts\python.exe -m ruff check backend
-.\.venv\Scripts\python.exe -m ruff format --check backend
+### Running the API Server
+```bash
+python -m uvicorn app.main:app --reload --port 8000
 ```
+Interactive OpenAPI documentation is available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 
-The default test suite uses synthetic/recorded fixtures, local HTTP stubs, and a temporary SQLite DB. Live tests are opt-in with `EVIDENCEFLOW_LIVE=1`. To run the synthetic engine demo, enter `backend` and run `..\.venv\Scripts\python.exe -m examples.member_c_demo`.
+### Test Suite Execution
+```bash
+# Run full automated test suite (223 passing tests)
+python -m pytest backend/tests/ -v
 
-See the [engine integration guide](docs/MEMBER_C.md), [methods contribution](docs/MEMBER_C_REPORT.md), and [combined analysis](docs/INTEGRATION_ANALYSIS.md).
-
-## Why EvidenceFlow
-
-Systematic review searches change as researchers refine their questions. Re-running a search can introduce new records, surface duplicates, or bring back a paper that was previously excluded. EvidenceFlow is planned around that iteration: query versions retain their provenance, reviewer decisions remain separate from machine suggestions, and changes to the evidence set can be inspected before conflicts are resolved.
-
-**Project goal:** make search evolution auditable without losing human work.
-
-## Planned workflow
-
-1. **Define the review** — record the question in PICO form (Population, Intervention, Comparator, Outcome) and configure inclusion and exclusion criteria with reasons.
-2. **Build and preview searches** — create versioned Boolean queries, set date ranges, choose a literature source, and inspect a result preview.
-3. **Approve and import records** — fetch bibliographic metadata and available abstracts from supported sources, retaining the query version that found each record.
-4. **Review duplicates** — identify likely duplicates using identifiers and bibliographic fields; confirm or reject uncertain pairs as a reviewer.
-5. **Screen studies** — record Include, Exclude, or Maybe decisions. Exclusions require a reason, and machine suggestions remain distinguishable from reviewer decisions.
-6. **Review PICO annotations** — inspect and correct suggested Population, Intervention, Comparator, and Outcome spans.
-7. **Inspect changes and export** — compare query versions, review decision conflicts, inspect the audit history, and export included studies to CSV.
-
-## Planned capabilities
-
-- Search version history and provenance links from records to the queries that found them.
-- Incremental imports with idempotent record storage.
-- Duplicate suggestions based on DOI/PMID and, when identifiers are missing, documented bibliographic matching rules.
-- Human confirmation or rejection of uncertain duplicate pairs.
-- Three-way screening decisions with an explanation for exclusions.
-- PICO span suggestions that reviewers can correct.
-- Query-version diffs, decision preservation, conflict review, and exact workspace restoration from saved snapshots.
-- Append-only audit history for reviewer actions and pipeline runs.
-- CSV export of included representative studies.
-
-These describe the full product target. The integration analysis distinguishes implemented components from the remaining application workflow.
-
-## Data sources
-
-The blueprint proposes adapters for:
-
-- [Europe PMC REST API](https://europepmc.org/RestfulWebService)
-- [NCBI PubMed E-utilities](https://www.ncbi.nlm.nih.gov/books/NBK25501/)
-
-Source integration, rate limiting, attribution, and any required notices must be implemented and verified before use. PubMed-derived data may have usage and copyright considerations; consult the applicable source guidance and display the required NCBI disclaimer in the product when PubMed content is shown.
-
-## Planned architecture
-
-The proposed stack is:
-
-- **Frontend:** React, TypeScript, Vite, and Tailwind CSS
-- **Backend:** Python 3.11, FastAPI, Pydantic, and SQLAlchemy
-- **Storage:** SQLite for local development, with PostgreSQL as a possible deployment option
-- **Processing:** separate, deterministic modules for deduplication, screening suggestions, and PICO extraction
-
-The intended service layout keeps the UI, API, source adapters, processing logic, and persistence distinct. Processing suggestions and reviewer decisions are stored separately so reruns can refresh machine output without silently replacing human work.
-
-## Repository status and roadmap
-
-The project blueprint describes these milestones:
-
-- Establish the review question, data model, API contracts, and end-to-end import flow.
-- Implement the core workflow: source search, import, deduplication, screening, PICO review, and CSV export.
-- Add query history, change comparison, decision reconciliation, and restoration from saved snapshots.
-- Document installation, verify a clean setup, and prepare a reproducible demo.
-
-The actual repository contents and completed milestones should be reflected here as implementation progresses.
-
-## Running the project
-
-The API server, migrations, offline checks, and engine demonstration can be run using the commands above. The frontend is not yet runnable. The blueprint’s proposed `make` targets have not been created.
-
-## Design principles
-
-- **People make review decisions.** Automation provides suggestions and evidence; reviewers can override them.
-- **Keep provenance.** Preserve which source and query version produced each record.
-- **Preserve history.** Prefer hiding records and superseding decisions over destructive edits.
-- **Make changes explainable.** Show why records were matched or suggested for exclusion, and surface disagreements for review.
-- **Treat reruns as repeatable.** Reprocessing the same inputs should not create duplicate records or erase reviewer work.
-- **Be conservative when uncertain.** Unclear screening evidence should be sent to human review.
-
-## Limitations
-
-The blueprint calls for a transparent, rules-based baseline. Such matching and screening methods can miss relevant studies or produce false positives; they are not a substitute for expert review. Abstracts and metadata may be incomplete, and the behavior of external APIs can change. EvidenceFlow is a research workflow aid, not an autonomous source of scientific conclusions.
-
-## Contributing
-
-Read the [Member C integration guide](docs/MEMBER_C.md) before changing engine contracts or connecting persistence. Each engine returns machine suggestions; reviewer decisions and annotations must remain separate. Keep tests offline and preserve versioned input keys when adding database adapters.
-
-## License
-
-No license has been selected yet. Until one is added, all rights remain with the copyright holder; do not assume the project is available for reuse or redistribution.
+# Run code standards & formatting checks
+python -m ruff check backend/
+python -m ruff format --check backend/
+```

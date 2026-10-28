@@ -1,3 +1,5 @@
+> Historical note retained from the previous baseline. Current behavior is described in ../PR_RECONCILIATION_OCT28.md and ../API_CONTRACTS.md.
+
 # PR #8 integration notes
 
 ## Implemented

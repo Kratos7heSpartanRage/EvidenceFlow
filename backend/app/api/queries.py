@@ -1,6 +1,6 @@
 """Query strategy, preview, import, and diffing API endpoints."""
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -10,7 +10,9 @@ from app.schemas.query import (
     QueryImportResponse,
     QueryPreviewResponse,
     QueryResponse,
+    QueryRevertResponse,
 )
+from app.services.import_pipeline import run_import_in_background
 from app.services.query_service import QueryService
 
 router = APIRouter(tags=["Queries"])
@@ -64,9 +66,16 @@ def preview_query(query_id: str, db: Session = Depends(get_db)):
     status_code=status.HTTP_202_ACCEPTED,
     summary="Approve query and trigger asynchronous ingestion pipeline",
 )
-def import_query(query_id: str, db: Session = Depends(get_db)):
-    service = QueryService(db)
-    return service.import_query(query_id)
+def import_query(query_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Starts a live import run: fetch, store, deduplicate, screen, PICO.
+
+    Returns at once with the run id; poll `GET /api/runs/{run_id}` for progress.
+    Re-posting returns the active or completed run; after a failure it retries.
+    """
+    response = QueryService(db).import_query(query_id)
+    if response.status == "queued":
+        background_tasks.add_task(run_import_in_background, response.run_id)
+    return response
 
 
 @router.get(
@@ -81,3 +90,15 @@ def diff_query(
 ):
     service = QueryService(db)
     return service.compute_diff(query_id=query_id, against_id=against)
+
+
+@router.post(
+    "/queries/{query_id}/revert",
+    response_model=QueryRevertResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Exact, zero-API revert to query version workspace snapshot",
+)
+def revert_query(query_id: str, db: Session = Depends(get_db)):
+    """Restores workspace to the exact state captured in GroupSnapshot for this query version."""
+    service = QueryService(db)
+    return service.revert_query(query_id)

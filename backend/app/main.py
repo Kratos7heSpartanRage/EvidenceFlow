@@ -9,11 +9,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.api.conflicts import router as conflicts_router
 from app.api.dedup import router as dedup_router
+from app.api.export import router as export_router
 from app.api.health import router as health_router
+from app.api.pico import router as pico_router
 from app.api.queries import router as queries_router
+from app.api.records import router as records_router
 from app.api.reviews import router as reviews_router
 from app.api.runs import router as runs_router
+from app.api.screening import router as screening_router
 from app.core.database import SessionLocal, utc_now
 from app.core.errors import AppError
 from app.models.audit import PipelineRun
@@ -24,7 +29,9 @@ async def lifespan(app: FastAPI):
     # Startup self-healing: Clean up any interrupted pipeline runs
     db = SessionLocal()
     try:
-        interrupted = db.query(PipelineRun).filter(PipelineRun.status == "running").all()
+        interrupted = (
+            db.query(PipelineRun).filter(PipelineRun.status.in_(("queued", "running"))).all()
+        )
         for run in interrupted:
             run.status = "failed"
             run.error_message = "Process interrupted during server restart or shutdown."
@@ -94,6 +101,11 @@ def create_app() -> FastAPI:
     app.include_router(queries_router, prefix="/api")
     app.include_router(runs_router, prefix="/api")
     app.include_router(dedup_router, prefix="/api")
+    app.include_router(records_router, prefix="/api")
+    app.include_router(screening_router, prefix="/api")
+    app.include_router(pico_router, prefix="/api")
+    app.include_router(conflicts_router, prefix="/api")
+    app.include_router(export_router, prefix="/api")
 
     return app
 

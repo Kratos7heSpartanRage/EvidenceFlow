@@ -79,4 +79,6 @@ class Record(Base):
             "review_id", "source", "source_record_id", name="uq_record_review_source_id"
         ),
         Index("idx_record_title_year", "title", "publication_year"),
+        Index("idx_record_review_rep_hidden", "review_id", "is_representative", "is_hidden"),
+        Index("idx_record_review_group", "review_id", "group_id"),
     )

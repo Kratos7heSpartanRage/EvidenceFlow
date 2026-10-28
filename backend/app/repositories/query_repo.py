@@ -50,12 +50,17 @@ class QueryRepository:
 
         already_screened = 0
         if retained_ids:
-            # Count records in retained_ids that have an active human decision
+            # Query active screening decisions on retained records via SQL subquery (O(1) parameter overhead)
+            v1_subquery = self.db.query(QueryRecord.record_id).filter(
+                QueryRecord.query_version_id == query_v1_id
+            )
             already_screened = (
                 self.db.query(func.count(func.distinct(ScreeningDecision.record_id)))
+                .join(QueryRecord, QueryRecord.record_id == ScreeningDecision.record_id)
                 .filter(
-                    ScreeningDecision.record_id.in_(retained_ids),
+                    QueryRecord.query_version_id == query_v2_id,
                     ScreeningDecision.superseded_by_id.is_(None),
+                    QueryRecord.record_id.in_(v1_subquery),
                 )
                 .scalar()
                 or 0

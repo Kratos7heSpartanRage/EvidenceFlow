@@ -1,3 +1,5 @@
+> Historical note retained from the previous baseline. Current behavior is described in ../PR_RECONCILIATION_OCT28.md and ../API_CONTRACTS.md.
+
 # Member C: engines and service integration
 
 This repository includes Member C's deterministic baseline from the original planning blueprint. See `INTEGRATION_ANALYSIS.md` for the merged A/B/C status. All

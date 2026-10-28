@@ -131,12 +131,14 @@ def test_invalid_date_range_returns_json_422(context):
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
-def test_unwired_background_import_returns_501_without_creating_run(context):
+def test_unpreviewed_background_import_is_rejected_without_creating_run(context):
+    # The live import is wired (see test_live_import_pipeline.py); a draft query
+    # must still be previewed and frozen before anything is fetched.
     query = create_query(context)
     with TestClient(app) as client:
         response = client.post(f"/api/queries/{query.id}/import")
-    assert response.status_code == 501
-    assert response.json()["error"]["code"] == "PIPELINE_NOT_READY"
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
     assert context[0].query(PipelineRun).filter_by(query_version_id=query.id).count() == 0
 
 

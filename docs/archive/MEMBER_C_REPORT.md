@@ -1,3 +1,5 @@
+> Historical note retained from the previous baseline. Current behavior is described in ../PR_RECONCILIATION_OCT28.md and ../API_CONTRACTS.md.
+
 # Member C report contribution: methods and limitations
 
 This is a methods contribution for the team's final report, not a completed

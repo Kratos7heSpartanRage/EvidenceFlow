@@ -1,3 +1,5 @@
+> Updated integration and migration notes: [PR reconciliation](../docs/PR_RECONCILIATION_OCT28.md).
+
 # EvidenceFlow backend
 
 Status: source adapters, database/models, review/query API, and processing-engine baseline are integrated. See [setup](../README.md) and the [integration analysis](../docs/INTEGRATION_ANALYSIS.md) for current workflow limits.
@@ -79,3 +81,28 @@ To record real responses for comparison:
   `NCBI_POLICY_URL`.
 
 `get_adapter("europe_pmc" | "pubmed")` returns a configured adapter.
+
+## Live import pipeline (`app/services/import_pipeline.py`)
+
+`POST /api/queries/{id}/import` on a previewed query creates a queued run and
+executes it in a background task; poll `GET /api/runs/{run_id}`. Steps, each
+committed separately:
+
+| Step | What happens |
+|---|---|
+| `fetch_records` | Adapter search up to `IMPORT_CAP` (default 500), told which records this review already stores so they are not refetched. New records are saved with a SHA-256 `content_hash` (in `raw_payload`). **Every** returned id, old or new, is linked to the query version. Hit count, new/already-stored counts, truncation and warnings go into the step message and the completion audit event. `imported_count` = records linked to this version. |
+| `deduplicate` | Same scoring, grouping and snapshot as the direct import path. |
+| `screen_heuristics` | Machine suggestions for visible representatives, keyed by record content + review PICO terms + criteria + algorithm, so reruns only screen new or changed records. |
+| `pico_extract` | Machine PICO spans for representatives not excluded by a reviewer (or by the suggestion when undecided). Unknown labels are not stored (the table needs text and offsets). |
+
+A failed step marks the run failed and keeps earlier steps; posting import again
+retries without duplicating records, links or suggestions. Re-posting while a run
+is queued, running or completed returns that run.
+
+Criteria reach the screening engine through `detector_rule` only (labels are never
+parsed): an engine code (`non_human`, `non_english`, `case_report`, `simulation`),
+or keywords separated by `|` (e.g. `rats|mice|murine`). Criteria without a rule are
+left to the reviewer. Review PICO fields may list several terms separated by commas
+or semicolons. The stored `confidence` is an ordinal for the engine's categorical
+strength (strong 1.0, weak 0.5, none 0.0), **not** a probability; the real strength
+is kept in `evidence_snippets`.
