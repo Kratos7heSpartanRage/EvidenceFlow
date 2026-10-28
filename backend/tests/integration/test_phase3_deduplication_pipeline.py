@@ -370,5 +370,7 @@ def test_scenario_d_pair_override_bypass_guard(client):
         )
         assert conflict is not None
         assert "pair_override" in conflict.open_fingerprint
+        assert "Transitive conflict link:" in conflict.resolution_note
+        assert rec_z.id in conflict.resolution_note
     finally:
         db.close()

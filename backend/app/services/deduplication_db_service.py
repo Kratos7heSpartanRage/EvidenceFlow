@@ -41,6 +41,34 @@ def _latest(decisions):
     )
 
 
+def find_transitive_conflict_path(
+    start: str,
+    end: str,
+    edges: list[tuple[str, str]],
+) -> list[str] | None:
+    """Finds the shortest transitive path between start and end using BFS for conflict visualization."""
+    from collections import deque
+
+    adj: dict[str, list[str]] = {}
+    for u, v in edges:
+        adj.setdefault(u, []).append(v)
+        adj.setdefault(v, []).append(u)
+
+    queue = deque([[start]])
+    visited = {start}
+
+    while queue:
+        path = queue.popleft()
+        node = path[-1]
+        if node == end:
+            return path
+        for neighbor in adj.get(node, []):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append(path + [neighbor])
+    return None
+
+
 class DatabaseDeduplicationService:
     def __init__(self, db: Session):
         self.db = db
@@ -191,6 +219,8 @@ class DatabaseDeduplicationService:
         for a, b in sorted(blocked):
             fingerprint = f"{review_id}:pair_override:{a}:{b}"
             if self.db.query(Conflict).filter_by(open_fingerprint=fingerprint).first() is None:
+                path = find_transitive_conflict_path(a, b, [(edge[2], edge[3]) for edge in edges])
+                path_str = " -> ".join(path) if path else f"{a} <-> {b}"
                 self.db.add(
                     Conflict(
                         review_id=review_id,
@@ -198,6 +228,7 @@ class DatabaseDeduplicationService:
                         reason="pair_override_bypassed",
                         status="open",
                         open_fingerprint=fingerprint,
+                        resolution_note=f"Transitive conflict link: {path_str}. Human rejected pair ({a}, {b}) was transitively connected by machine edges.",
                     )
                 )
         self.db.flush()
