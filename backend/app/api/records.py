@@ -24,7 +24,7 @@ def list_records(
     decision: str | None = Query(
         default=None, description="Screening decision: include, exclude, maybe, unscreened"
     ),
-    q: str | None = Query(default=None, description="Search keyword in title or abstract"),
+    q: str | None = Query(default=None, description="Search title, abstract, PMID, or source record ID"),
     version: str | None = Query(default=None, description="Query version ID filter"),
     representatives_only: bool = Query(
         default=True, description="Return only canonical cluster representatives"

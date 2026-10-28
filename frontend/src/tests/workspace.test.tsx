@@ -58,14 +58,17 @@ describe('Workspace connectivity', () => {
   });
   it('polls queued import runs until completion and stops polling', async () => {
     let calls = 0;
+    const onViewScreening = vi.fn();
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({
       id: 'run-uuid', review_id: 'review-uuid', query_version_id: 'query-uuid', run_type: 'import',
       status: ++calls === 1 ? 'queued' : 'completed', progress_percent: calls === 1 ? 0 : 100,
       started_at: '2026-10-28T10:00:00Z', completed_at: null, steps: []
     })));
-    render(<Harness><RunLogDrawer runId="run-uuid" isOpen onClose={() => undefined} /></Harness>);
+    render(<Harness><RunLogDrawer runId="run-uuid" isOpen onClose={() => undefined} onViewScreening={onViewScreening} /></Harness>);
     expect(await screen.findByText('queued')).toBeInTheDocument();
     expect(await screen.findByText('completed', {}, { timeout: 2500 })).toBeInTheDocument();
     await waitFor(() => expect(calls).toBe(2));
+    fireEvent.click(screen.getByRole('button', { name: 'View imported papers in Screening Queue' }));
+    expect(onViewScreening).toHaveBeenCalledOnce();
   });
 });

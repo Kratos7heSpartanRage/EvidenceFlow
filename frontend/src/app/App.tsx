@@ -7,6 +7,7 @@ import { ConflictsWorkspace } from '../features/conflicts/ConflictsWorkspace';
 import { DuplicatesQueue } from '../features/duplicates/DuplicatesQueue';
 import { ExportView } from '../features/export/ExportView';
 import { HistoryDiffView } from '../features/history/HistoryDiffView';
+import { ReviewIntelligence } from '../features/intelligence/ReviewIntelligence';
 import { LandingPage } from '../features/landing/LandingPage';
 import { PicoWorkspace } from '../features/pico/PicoWorkspace';
 import { ReviewSetup } from '../features/reviews/ReviewSetup';
@@ -100,10 +101,11 @@ function Workspace({ reviewId, activeTab, setActiveTab }: { reviewId: EntityId; 
         {activeTab === 'setup' && (
           <ReviewSetup onProceedToSearch={() => setActiveTab('search')} />
         )}
-        {activeTab === 'search' && <SearchBuilder />}
+        {activeTab === 'search' && <SearchBuilder onViewScreening={() => setActiveTab('screening')} />}
         {activeTab === 'duplicates' && <DuplicatesQueue />}
         {activeTab === 'screening' && <ScreeningQueue />}
         {activeTab === 'pico' && <PicoWorkspace />}
+        {activeTab === 'intelligence' && <ReviewIntelligence />}
         {activeTab === 'history' && (
           <HistoryDiffView onNavigateToConflicts={() => setActiveTab('conflicts')} />
         )}

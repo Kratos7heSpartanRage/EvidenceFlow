@@ -59,13 +59,15 @@ class RecordService:
                 QueryRecord.query_version_id == version_id
             )
 
-        # Text search (Title / Abstract substring matching)
+        # Search visible bibliographic text and source identifiers.
         if q and q.strip():
             search_term = f"%{q.strip()}%"
             query = query.filter(
                 or_(
                     Record.title.ilike(search_term),
                     Record.abstract.ilike(search_term),
+                    Record.pmid.ilike(search_term),
+                    Record.source_record_id.ilike(search_term),
                 )
             )
 
