@@ -34,6 +34,10 @@ if settings.DATABASE_URL.startswith("sqlite"):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA cache_size=-64000")  # 64MB in-memory page cache
+        cursor.execute("PRAGMA temp_store=MEMORY")  # In-memory temporary tables & indices
+        cursor.execute("PRAGMA mmap_size=268435456")  # 256MB memory-mapped I/O
         cursor.close()
 
 

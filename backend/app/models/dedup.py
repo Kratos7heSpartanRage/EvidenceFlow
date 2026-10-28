@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     String,
     Text,
     UniqueConstraint,
@@ -67,6 +68,8 @@ class DuplicatePair(Base):
         UniqueConstraint(
             "review_id", "record_a_id", "record_b_id", name="uq_duplicate_pair_canonical"
         ),
+        Index("idx_duplicate_pairs_review_tier", "review_id", "tier"),
+        Index("idx_duplicate_pairs_review_status", "review_id", "status"),
     )
 
 

@@ -19,6 +19,7 @@ from app.schemas.query import (
     QueryImportResponse,
     QueryPreviewResponse,
     QueryResponse,
+    QueryRevertResponse,
 )
 from app.services.audit_service import AuditService
 from app.services.source_service import source_adapter
@@ -172,17 +173,24 @@ class QueryService:
             .order_by(PipelineRun.started_at.desc())
             .first()
         )
-        if existing_run and existing_run.status in ("running", "completed", "awaiting_processing"):
+        if existing_run and existing_run.status in (
+            "queued",
+            "running",
+            "completed",
+            "awaiting_processing",
+        ):
             return QueryImportResponse(run_id=existing_run.id, status=existing_run.status)
 
-        if records_in is None:
-            raise AppError(
-                "The background import processor is not connected yet.",
-                code="PIPELINE_NOT_READY",
-                status_code=501,
-            )
         if query.status == "draft":
             raise ValidationError("Preview and approve this query before importing records.")
+
+        if records_in is None:
+            # Live import: the API layer runs this queued run in a background task
+            # (see app.services.import_pipeline). A failed run can be retried.
+            from app.services.import_pipeline import ImportPipeline
+
+            run = ImportPipeline(self.db).start(query, actor=actor)
+            return QueryImportResponse(run_id=run.id, status=run.status)
         expected_source = query.source
         if any(record.source.value != expected_source for record in records_in):
             raise ValidationError("Every imported record must use the query's literature source.")
@@ -215,30 +223,31 @@ class QueryService:
 
         # If records are provided directly (e.g. from adapter or test fixture), persist them idempotently
         if records_in is not None:
+            # Batch preload existing records and links to eliminate N+1 DB queries
+            existing_records = {
+                (r[0], r[1]): r[2]
+                for r in self.db.query(Record.source, Record.source_record_id, Record.id)
+                .filter(Record.review_id == query.review_id)
+                .all()
+            }
+            existing_links = {
+                qr[0]
+                for qr in self.db.query(QueryRecord.record_id)
+                .filter(QueryRecord.query_version_id == query.id)
+                .all()
+            }
+
             imported_count = 0
             for r_in in records_in:
-                # Check for existing record by idempotency key (review_id, source, source_record_id)
-                existing = (
-                    self.db.query(Record)
-                    .filter(
-                        Record.review_id == query.review_id,
-                        Record.source
-                        == (
-                            r_in.source.value if hasattr(r_in.source, "value") else str(r_in.source)
-                        ),
-                        Record.source_record_id == r_in.source_record_id,
-                    )
-                    .first()
-                )
+                src_val = r_in.source.value if hasattr(r_in.source, "value") else str(r_in.source)
+                rec_key = (src_val, r_in.source_record_id)
 
-                if existing:
-                    rec_id = existing.id
+                if rec_key in existing_records:
+                    rec_id = existing_records[rec_key]
                 else:
                     new_rec = Record(
                         review_id=query.review_id,
-                        source=r_in.source.value
-                        if hasattr(r_in.source, "value")
-                        else str(r_in.source),
+                        source=src_val,
                         source_record_id=r_in.source_record_id,
                         doi=r_in.doi,
                         pmid=r_in.pmid,
@@ -258,20 +267,14 @@ class QueryService:
                     self.db.add(new_rec)
                     self.db.flush()
                     rec_id = new_rec.id
+                    existing_records[rec_key] = rec_id
                     imported_count += 1
 
                 # Link record to this query version idempotently
-                existing_link = (
-                    self.db.query(QueryRecord)
-                    .filter(
-                        QueryRecord.query_version_id == query.id,
-                        QueryRecord.record_id == rec_id,
-                    )
-                    .first()
-                )
-                if not existing_link:
+                if rec_id not in existing_links:
                     qr = QueryRecord(query_version_id=query.id, record_id=rec_id)
                     self.db.add(qr)
+                    existing_links.add(rec_id)
 
             query.imported_count = (query.imported_count or 0) + imported_count
             # Fetch/store is a completed step. Commit it before deduplication,
@@ -336,3 +339,70 @@ class QueryService:
             raise ValidationError("Compared queries must belong to the same review.")
 
         return self.query_repo.compute_diff(query_id, against_id)
+
+    def revert_query(self, query_id: str, actor: str = "Reviewer") -> QueryRevertResponse:
+        """Exact, zero-API revert (Scenario E).
+
+        Restores workspace to the exact state captured in GroupSnapshot at the completion
+        of query_id. Records present in snapshot are unhidden and restored to snapshot groups;
+        records not present in snapshot are soft-hidden. ZERO external calls are made.
+        """
+        query = self.query_repo.get(query_id)
+        if not query:
+            raise NotFoundError(f"Query version '{query_id}' was not found.")
+
+        # Load snapshots for target query version
+        from app.models.dedup import GroupSnapshot
+
+        snapshots = (
+            self.db.query(GroupSnapshot).filter(GroupSnapshot.query_version_id == query_id).all()
+        )
+        if not snapshots:
+            raise ValidationError(
+                f"Cannot revert to query '{query_id}': no group snapshot exists for this query version."
+            )
+
+        # Build fast O(1) lookup dictionary for snapshot records
+        snapshot_by_record = {s.record_id: s for s in snapshots}
+
+        # Fetch all records in this review
+        records = self.db.query(Record).filter(Record.review_id == query.review_id).all()
+
+        restored_count = 0
+        hidden_count = 0
+
+        for r in records:
+            if r.id in snapshot_by_record:
+                snap = snapshot_by_record[r.id]
+                r.is_hidden = False
+                r.group_id = snap.group_id
+                r.is_representative = str(snap.is_representative).lower() == "true"
+                restored_count += 1
+            else:
+                r.is_hidden = True
+                hidden_count += 1
+
+        # Audit event
+        self.audit.log(
+            review_id=query.review_id,
+            actor=actor,
+            event_type="query_reverted",
+            target_type="query_version",
+            target_id=query.id,
+            before_state=None,
+            after_state={
+                "restored_version_id": query.id,
+                "version_number": query.version_number,
+                "restored_records_count": restored_count,
+                "hidden_records_count": hidden_count,
+            },
+            note=f"Zero-API rollback to Query v{query.version_number} ({query.label})",
+        )
+
+        self.db.commit()
+        return QueryRevertResponse(
+            status="reverted",
+            restored_version_id=query.id,
+            restored_records_count=restored_count,
+            hidden_records_count=hidden_count,
+        )

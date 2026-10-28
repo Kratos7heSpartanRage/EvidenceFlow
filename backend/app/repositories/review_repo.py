@@ -3,7 +3,6 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.dedup import DedupGroup
 from app.models.loop import Conflict
 from app.models.query import QueryVersion
 from app.models.record import Record
@@ -57,27 +56,13 @@ class ReviewRepository:
             or 0
         )
 
-        # Unique studies: Count dedup groups, plus any ungrouped records
-        grouped_count = (
-            self.db.query(func.count(DedupGroup.id))
-            .filter(
-                DedupGroup.review_id == review_id,
-                DedupGroup.members.any(Record.is_hidden.is_(False)),
-            )
+        # Unique studies: Count distinct groups or individual records in a single indexed pass
+        unique_studies = (
+            self.db.query(func.count(func.distinct(func.coalesce(Record.group_id, Record.id))))
+            .filter(Record.review_id == review_id, Record.is_hidden.is_(False))
             .scalar()
             or 0
         )
-        ungrouped_count = (
-            self.db.query(func.count(Record.id))
-            .filter(
-                Record.review_id == review_id,
-                Record.is_hidden.is_(False),
-                Record.group_id.is_(None),
-            )
-            .scalar()
-            or 0
-        )
-        unique_studies = grouped_count + ungrouped_count
 
         # Active (non-superseded) decisions for visible records
         active_decisions = (
