@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "selection_note": "Three complete small medical review subsets selected before executing predictions. Convenience benchmark, not the full SYNERGY corpus. Profiles are keyword approximations of published review criteria and were not fitted to labels.",
+  "synergy": {
+    "doi": "10.34894/HE6NAQ",
+    "release_version": "1.0",
+    "metadata_url": "https://dataverse.nl/api/datasets/:persistentId/?persistentId=doi:10.34894/HE6NAQ",
+    "license": "CC0-1.0",
+    "eligibility_config_commit": "dc2dadfdbb98eb1b4259604789abd640aa3b693e",
+    "profiles": [
+      {
+        "key": "Donners_2021",
+        "population": [
+          "hemophilia",
+          "haemophilia",
+          "patients",
+          "human"
+        ],
+        "intervention": [
+          "emicizumab"
+        ],
+        "exclusions": [
+          "non_human",
+          "non_english"
+        ],
+        "custom_exclusion_terms": [],
+        "protocol_summary": "Human emicizumab pharmacokinetics; modeled PK is allowed. Full-text availability and original PK cannot be established by this abstract-only baseline."
+      },
+      {
+        "key": "Meijboom_2021",
+        "population": [
+          "patients",
+          "rheumatoid arthritis",
+          "inflammatory"
+        ],
+        "intervention": [
+          "biosimilar",
+          "etanercept",
+          "infliximab",
+          "adalimumab"
+        ],
+        "exclusions": [
+          "non_human",
+          "non_english"
+        ],
+        "custom_exclusion_terms": [
+          "systematic review",
+          "meta-analysis",
+          "editorial",
+          "conference abstract"
+        ],
+        "protocol_summary": "Patients switching TNF inhibitors to biosimilars; original research with retransition information. Full eligibility and full-text availability exceed these abstract-only rules."
+      },
+      {
+        "key": "van_der_Valk_2021",
+        "population": [
+          "obesity",
+          "obese",
+          "adiposity",
+          "body mass index"
+        ],
+        "intervention": [
+          "hair cortisol",
+          "hair cortisone",
+          "hair glucocorticoid",
+          "hairgc"
+        ],
+        "exclusions": [
+          "non_human",
+          "non_english",
+          "case_report"
+        ],
+        "custom_exclusion_terms": [
+          "systematic review",
+          "meta-analysis",
+          "review article"
+        ],
+        "protocol_summary": "Hair glucocorticoids and obesity associations; unsupported full-text, age and simultaneous-measurement requirements are not inferred."
+      }
+    ],
+    "files": [
+      {
+        "review": "van_der_Valk_2021",
+        "filename": "labels.csv",
+        "url": "https://dataverse.nl/api/access/datafile/359944",
+        "checksum": {
+          "type": "SHA-1",
+          "value": "946c649001751730c3e60f2fdc7e09e11ebba940"
+        },
+        "bytes": 63996
+      },
+      {
+        "review": "Meijboom_2021",
+        "filename": "labels.csv",
+        "url": "https://dataverse.nl/api/access/datafile/359879",
+        "checksum": {
+          "type": "SHA-1",
+          "value": "5ed96926eadb15bffcbb6a13511e82155241d210"
+        },
+        "bytes": 96153
+      },
+      {
+        "review": "Donners_2021",
+        "filename": "labels.csv",
+        "url": "https://dataverse.nl/api/access/datafile/359827",
+        "checksum": {
+          "type": "SHA-1",
+          "value": "37c17300c3d657047b16e218e0ad16489e126ada"
+        },
+        "bytes": 19786
+      },
+      {
+        "review": "Meijboom_2021",
+        "filename": "metadata.json",
+        "url": "https://dataverse.nl/api/access/datafile/359874",
+        "checksum": {
+          "type": "SHA-1",
+          "value": "a93711e74c459bacade9b9abf1be08efe3a0d66d"
+        },
+        "bytes": 469
+      },
+      {
+        "review": "van_der_Valk_2021",
+        "filename": "metadata.json",
+        "url": "https://dataverse.nl/api/access/datafile/359855",
+        "checksum": {
+          "type": "SHA-1",
+          "value": "ab2307d40c936f7b248406a3d1755de869f096f7"
+        },
+        "bytes": 713
+      },
+      {
+        "review": "Donners_2021",
+        "filename": "metadata.json",
+        "url": "https://dataverse.nl/api/access/datafile/359892",
+        "checksum": {
+          "type": "SHA-1",
+          "value": "0bc5dae9b40469eafaf5b50491f5be523ebc2a90"
+        },
+        "bytes": 469
+      },
+      {
+        "review": "Donners_2021",
+        "filename": "works_1.zip",
+        "url": "https://dataverse.nl/api/access/datafile/359840",
+        "checksum": {
+          "type": "SHA-1",
+          "value": "08c0e98eb3f8440a118eb0ffa56f1466aca2d9ed"
+        },
+        "bytes": 738232
+      },
+      {
+        "review": "Meijboom_2021",
+        "filename": "works_1.zip",
+        "url": "https://dataverse.nl/api/access/datafile/359912",
+        "checksum": {
+          "type": "SHA-1",
+          "value": "213c22db5caa398b5c480247b12f25070b2a912f"
+        },
+        "bytes": 2355371
+      },
+      {
+        "review": "van_der_Valk_2021",
+        "filename": "works_1.zip",
+        "url": "https://dataverse.nl/api/access/datafile/359937",
+        "checksum": {
+          "type": "SHA-1",
+          "value": "cc3233d2279b3467d2a849518a7127c3ec6aaaaf"
+        },
+        "bytes": 2106498
+      }
+    ]
+  },
+  "ebm_nlp": {
+    "repository": "https://github.com/bepnye/EBM-NLP",
+    "revision": "43a4a1ea3f0a21cfb8820c040b843dfaf66192d0",
+    "url": "https://raw.githubusercontent.com/bepnye/EBM-NLP/43a4a1ea3f0a21cfb8820c040b843dfaf66192d0/ebm_nlp_2_00.tar.gz",
+    "filename": "ebm_nlp_2_00.tar.gz",
+    "sha256": "b7357503911ba9f708d04e24c1ab3fe9e0a79833910e53e2472ed21214a44e3f",
+    "license": "unknown on the BigBio card; event permits local training/testing only, no redistribution",
+    "split": "aggregated/starting_spans/*/test/gold",
+    "selection": "Intersection of all three expert-labelled P/I/O test sets; all matching documents, no sampling by outcome.",
+    "terms": "Empty PICO lexicon: cue-only baseline, no gold terms supplied.",
+    "label_mapping": "P -> participants; union(I,C) -> interventions; O -> outcomes. No independent Comparator metric is possible from this corpus."
+  }
+}

@@ -3,6 +3,11 @@
 Planning baseline: `main` at `686f341` after PR #14, 28 October 2026.
 This is a work plan, not a claim that the tasks below are implemented or tested.
 
+C1 update: an initial external-data baseline and metric-validation harness are now
+available in [the checkpoint report](evaluation/checkpoint/EVALUATION_REPORT.md).
+The results expose quality gaps; C2 improvements and hosted deployment checks are
+still follow-up work. See [Manas's preparation](CHECKPOINT_PREP.md).
+
 ## 1. Where the project stands
 
 The frontend is connected to FastAPI for review creation, queries, preview/import,

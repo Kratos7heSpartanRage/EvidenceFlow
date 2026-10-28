@@ -1,0 +1,853 @@
+{
+  "measured_at_utc": "2026-10-28T13:39:01.912543+00:00",
+  "working_tree_commit": "69a4f637b12303b6b7af21b5ceb9e52206206b9a",
+  "environment": {
+    "python": "3.13.5",
+    "os": "Windows",
+    "pyarrow": "26.0.0"
+  },
+  "algorithm_versions": {
+    "dedup": "dedup-rules-2",
+    "screening": "screening-rules-1",
+    "pico": "pico-cues-1"
+  },
+  "engine_file_sha256": {
+    "dedup.py": "0a298f35ba776bc44bf138de205ab372e1418959100ededcbb66b64f1585713b",
+    "evaluation.py": "6a02da0d57c04982fcddbb1746ced72e2486b82cec1f20d2fe4996dbf102aa44",
+    "normalize.py": "fd67faeb7a61e2285570fb84d2b9e6b30eeb9a81ff07e49e36d8786e6c6cf03d",
+    "pico.py": "3ecf9ce40e7cf02516563fb4fe9359fefc4b36621a8627f63c1a27fbe0912e2e",
+    "screening.py": "45016f688cb59b866357fd16346a3f05b819ed189743dbba9a287e688d456848",
+    "types.py": "a750e31f9ebf4f26e9e49ddb65907b32306950edd0fde22eb2800d868b66f4dd",
+    "__init__.py": "27808b8a61c1b499422fb8f2039924341b16d597bf1978907ae41c19c12e1ae4"
+  },
+  "runner_sha256": "41a456cfe4cc988692ed16a6699b60cf073a41beed37de4764efd43332652dc8",
+  "datasets": {
+    "schema_version": 1,
+    "selection_note": "Three complete small medical review subsets selected before executing predictions. Convenience benchmark, not the full SYNERGY corpus. Profiles are keyword approximations of published review criteria and were not fitted to labels.",
+    "synergy": {
+      "doi": "10.34894/HE6NAQ",
+      "release_version": "1.0",
+      "metadata_url": "https://dataverse.nl/api/datasets/:persistentId/?persistentId=doi:10.34894/HE6NAQ",
+      "license": "CC0-1.0",
+      "eligibility_config_commit": "dc2dadfdbb98eb1b4259604789abd640aa3b693e",
+      "profiles": [
+        {
+          "key": "Donners_2021",
+          "population": [
+            "hemophilia",
+            "haemophilia",
+            "patients",
+            "human"
+          ],
+          "intervention": [
+            "emicizumab"
+          ],
+          "exclusions": [
+            "non_human",
+            "non_english"
+          ],
+          "custom_exclusion_terms": [],
+          "protocol_summary": "Human emicizumab pharmacokinetics; modeled PK is allowed. Full-text availability and original PK cannot be established by this abstract-only baseline."
+        },
+        {
+          "key": "Meijboom_2021",
+          "population": [
+            "patients",
+            "rheumatoid arthritis",
+            "inflammatory"
+          ],
+          "intervention": [
+            "biosimilar",
+            "etanercept",
+            "infliximab",
+            "adalimumab"
+          ],
+          "exclusions": [
+            "non_human",
+            "non_english"
+          ],
+          "custom_exclusion_terms": [
+            "systematic review",
+            "meta-analysis",
+            "editorial",
+            "conference abstract"
+          ],
+          "protocol_summary": "Patients switching TNF inhibitors to biosimilars; original research with retransition information. Full eligibility and full-text availability exceed these abstract-only rules."
+        },
+        {
+          "key": "van_der_Valk_2021",
+          "population": [
+            "obesity",
+            "obese",
+            "adiposity",
+            "body mass index"
+          ],
+          "intervention": [
+            "hair cortisol",
+            "hair cortisone",
+            "hair glucocorticoid",
+            "hairgc"
+          ],
+          "exclusions": [
+            "non_human",
+            "non_english",
+            "case_report"
+          ],
+          "custom_exclusion_terms": [
+            "systematic review",
+            "meta-analysis",
+            "review article"
+          ],
+          "protocol_summary": "Hair glucocorticoids and obesity associations; unsupported full-text, age and simultaneous-measurement requirements are not inferred."
+        }
+      ],
+      "files": [
+        {
+          "review": "van_der_Valk_2021",
+          "filename": "labels.csv",
+          "url": "https://dataverse.nl/api/access/datafile/359944",
+          "checksum": {
+            "type": "SHA-1",
+            "value": "946c649001751730c3e60f2fdc7e09e11ebba940"
+          },
+          "bytes": 63996
+        },
+        {
+          "review": "Meijboom_2021",
+          "filename": "labels.csv",
+          "url": "https://dataverse.nl/api/access/datafile/359879",
+          "checksum": {
+            "type": "SHA-1",
+            "value": "5ed96926eadb15bffcbb6a13511e82155241d210"
+          },
+          "bytes": 96153
+        },
+        {
+          "review": "Donners_2021",
+          "filename": "labels.csv",
+          "url": "https://dataverse.nl/api/access/datafile/359827",
+          "checksum": {
+            "type": "SHA-1",
+            "value": "37c17300c3d657047b16e218e0ad16489e126ada"
+          },
+          "bytes": 19786
+        },
+        {
+          "review": "Meijboom_2021",
+          "filename": "metadata.json",
+          "url": "https://dataverse.nl/api/access/datafile/359874",
+          "checksum": {
+            "type": "SHA-1",
+            "value": "a93711e74c459bacade9b9abf1be08efe3a0d66d"
+          },
+          "bytes": 469
+        },
+        {
+          "review": "van_der_Valk_2021",
+          "filename": "metadata.json",
+          "url": "https://dataverse.nl/api/access/datafile/359855",
+          "checksum": {
+            "type": "SHA-1",
+            "value": "ab2307d40c936f7b248406a3d1755de869f096f7"
+          },
+          "bytes": 713
+        },
+        {
+          "review": "Donners_2021",
+          "filename": "metadata.json",
+          "url": "https://dataverse.nl/api/access/datafile/359892",
+          "checksum": {
+            "type": "SHA-1",
+            "value": "0bc5dae9b40469eafaf5b50491f5be523ebc2a90"
+          },
+          "bytes": 469
+        },
+        {
+          "review": "Donners_2021",
+          "filename": "works_1.zip",
+          "url": "https://dataverse.nl/api/access/datafile/359840",
+          "checksum": {
+            "type": "SHA-1",
+            "value": "08c0e98eb3f8440a118eb0ffa56f1466aca2d9ed"
+          },
+          "bytes": 738232
+        },
+        {
+          "review": "Meijboom_2021",
+          "filename": "works_1.zip",
+          "url": "https://dataverse.nl/api/access/datafile/359912",
+          "checksum": {
+            "type": "SHA-1",
+            "value": "213c22db5caa398b5c480247b12f25070b2a912f"
+          },
+          "bytes": 2355371
+        },
+        {
+          "review": "van_der_Valk_2021",
+          "filename": "works_1.zip",
+          "url": "https://dataverse.nl/api/access/datafile/359937",
+          "checksum": {
+            "type": "SHA-1",
+            "value": "cc3233d2279b3467d2a849518a7127c3ec6aaaaf"
+          },
+          "bytes": 2106498
+        }
+      ]
+    },
+    "ebm_nlp": {
+      "repository": "https://github.com/bepnye/EBM-NLP",
+      "revision": "43a4a1ea3f0a21cfb8820c040b843dfaf66192d0",
+      "url": "https://raw.githubusercontent.com/bepnye/EBM-NLP/43a4a1ea3f0a21cfb8820c040b843dfaf66192d0/ebm_nlp_2_00.tar.gz",
+      "filename": "ebm_nlp_2_00.tar.gz",
+      "sha256": "b7357503911ba9f708d04e24c1ab3fe9e0a79833910e53e2472ed21214a44e3f",
+      "license": "unknown on the BigBio card; event permits local training/testing only, no redistribution",
+      "split": "aggregated/starting_spans/*/test/gold",
+      "selection": "Intersection of all three expert-labelled P/I/O test sets; all matching documents, no sampling by outcome.",
+      "terms": "Empty PICO lexicon: cue-only baseline, no gold terms supplied.",
+      "label_mapping": "P -> participants; union(I,C) -> interventions; O -> outcomes. No independent Comparator metric is possible from this corpus."
+    }
+  },
+  "prepared_inputs": {
+    "config_sha256": "055740dc0e776201660f9171c95ee86b8dfe11f79e0f815f5743e20be6d4db1b",
+    "pyarrow_version": "26.0.0",
+    "inputs": [
+      {
+        "file": "synergy\\van_der_Valk_2021\\labels.csv",
+        "sha256": "0a0c09ec16bbb7ec4b24b34772bc7c82e015744dd5d0ab0ecd78be77d793b80d"
+      },
+      {
+        "file": "synergy\\Meijboom_2021\\labels.csv",
+        "sha256": "3749c0349df2ee93ab469153abd20963f97955c0363c39be013a0bedc4a59198"
+      },
+      {
+        "file": "synergy\\Donners_2021\\labels.csv",
+        "sha256": "a9893e93b39b6a82c1f87b3ddcf22dc3d4a9911b99f48db45d10d7c820ed19e5"
+      },
+      {
+        "file": "synergy\\Meijboom_2021\\metadata.json",
+        "sha256": "63e36b047050a1f32319f879946534e1870bdae85b16c336256afe548b18a694"
+      },
+      {
+        "file": "synergy\\van_der_Valk_2021\\metadata.json",
+        "sha256": "4049a7d2efbe809de5b8bc58ccb90e7233645733cada4fdc1d009582cb1ed5e4"
+      },
+      {
+        "file": "synergy\\Donners_2021\\metadata.json",
+        "sha256": "f04777778b2fa497d1d0d587db5b95a33f9bc52b80de872eef3c3d43b5a6b05e"
+      },
+      {
+        "file": "synergy\\Donners_2021\\works_1.zip",
+        "sha256": "2760f006c11dc7ae4261c4e90f27f08f2a49329017e09f38ddb573416a592e71"
+      },
+      {
+        "file": "synergy\\Meijboom_2021\\works_1.zip",
+        "sha256": "8c4392a4aa4e723d3bd972a8ea53dd40e8bc3306a488d1b96af9542c93479e4a"
+      },
+      {
+        "file": "synergy\\van_der_Valk_2021\\works_1.zip",
+        "sha256": "64ce804ddaa96d71d1f56dedc420db5953fe5d3fa72f1a41a3692a855d2980e3"
+      },
+      {
+        "file": "ebm_nlp_2_00.tar.gz",
+        "sha256": "b7357503911ba9f708d04e24c1ab3fe9e0a79833910e53e2472ed21214a44e3f"
+      }
+    ],
+    "synergy.parquet": {
+      "rows": 1865,
+      "sha256": "a6ef2e7928ecd1a2f774e683197d2103dca3179d96368c0585bd85662b692cae"
+    },
+    "ebm_expert_test.parquet": {
+      "rows": 186,
+      "sha256": "3183d74ea50497f4cbb69cb83cc7895e1385e1112a2aaae99a985fe5da62b6fd"
+    },
+    "ebm": {
+      "expert_files_by_label": {
+        "participants": 189,
+        "interventions": 188,
+        "outcomes": 190
+      },
+      "complete_expert_documents": 186,
+      "selection": "intersection of P/I/O expert test IDs"
+    },
+    "privacy": "All raw text, labels and converted Parquet stay local; do not commit .eval_data"
+  },
+  "screening": {
+    "reviews": {
+      "Donners_2021": {
+        "n": 258,
+        "accuracy": 0.5,
+        "macro_f1": 0.40074542213579645,
+        "confusion_matrix_rows_gold_columns_prediction": {
+          "excluded": {
+            "excluded": 117,
+            "included": 126
+          },
+          "included": {
+            "excluded": 3,
+            "included": 12
+          }
+        },
+        "per_class": {
+          "excluded": {
+            "tp": 117,
+            "fp": 3,
+            "fn": 126,
+            "precision": 0.975,
+            "recall": 0.48148148148148145,
+            "f1": 0.6446280991735537,
+            "gold_support": 243,
+            "predicted_positive": 120
+          },
+          "included": {
+            "tp": 12,
+            "fp": 126,
+            "fn": 3,
+            "precision": 0.08695652173913043,
+            "recall": 0.8,
+            "f1": 0.1568627450980392,
+            "gold_support": 15,
+            "predicted_positive": 138
+          }
+        },
+        "gold_counts": {
+          "excluded": 243,
+          "included": 15
+        },
+        "prediction_counts": {
+          "excluded": 120,
+          "included": 138
+        },
+        "strict_policy": "Only Include counts positive; Maybe is non-Include for this score.",
+        "three_way_confusion": {
+          "excluded": {
+            "include": 126,
+            "exclude": 4,
+            "maybe": 113
+          },
+          "included": {
+            "include": 12,
+            "exclude": 0,
+            "maybe": 3
+          }
+        },
+        "maybe_count": 116,
+        "maybe_rate": 0.4496124031007752,
+        "non_maybe_suggestion_rate": 0.5503875968992248,
+        "eligible_records_suggested_exclude": 0,
+        "eligible_retention_if_maybe_stays_for_review": 1.0,
+        "fraction_records_retained_if_only_exclude_removed": 0.9844961240310077,
+        "included_reference_count": 15,
+        "missing_abstract_count": 8,
+        "predicted_exclusions_with_reason": 4,
+        "predicted_exclusion_count": 4,
+        "all_excluded_baseline_accuracy": 0.9418604651162791,
+        "all_excluded_baseline_positive_f1": 0.0
+      },
+      "Meijboom_2021": {
+        "n": 882,
+        "accuracy": 0.45351473922902497,
+        "macro_f1": 0.3594443105110897,
+        "confusion_matrix_rows_gold_columns_prediction": {
+          "excluded": {
+            "excluded": 369,
+            "included": 476
+          },
+          "included": {
+            "excluded": 6,
+            "included": 31
+          }
+        },
+        "per_class": {
+          "excluded": {
+            "tp": 369,
+            "fp": 6,
+            "fn": 476,
+            "precision": 0.984,
+            "recall": 0.4366863905325444,
+            "f1": 0.6049180327868853,
+            "gold_support": 845,
+            "predicted_positive": 375
+          },
+          "included": {
+            "tp": 31,
+            "fp": 476,
+            "fn": 6,
+            "precision": 0.0611439842209073,
+            "recall": 0.8378378378378378,
+            "f1": 0.11397058823529412,
+            "gold_support": 37,
+            "predicted_positive": 507
+          }
+        },
+        "gold_counts": {
+          "excluded": 845,
+          "included": 37
+        },
+        "prediction_counts": {
+          "included": 507,
+          "excluded": 375
+        },
+        "strict_policy": "Only Include counts positive; Maybe is non-Include for this score.",
+        "three_way_confusion": {
+          "excluded": {
+            "include": 476,
+            "exclude": 40,
+            "maybe": 329
+          },
+          "included": {
+            "include": 31,
+            "exclude": 3,
+            "maybe": 3
+          }
+        },
+        "maybe_count": 332,
+        "maybe_rate": 0.3764172335600907,
+        "non_maybe_suggestion_rate": 0.6235827664399093,
+        "eligible_records_suggested_exclude": 3,
+        "eligible_retention_if_maybe_stays_for_review": 0.918918918918919,
+        "fraction_records_retained_if_only_exclude_removed": 0.9512471655328798,
+        "included_reference_count": 37,
+        "missing_abstract_count": 57,
+        "predicted_exclusions_with_reason": 43,
+        "predicted_exclusion_count": 43,
+        "all_excluded_baseline_accuracy": 0.9580498866213152,
+        "all_excluded_baseline_positive_f1": 0.0
+      },
+      "van_der_Valk_2021": {
+        "n": 725,
+        "accuracy": 0.8606896551724138,
+        "macro_f1": 0.6750191948375872,
+        "confusion_matrix_rows_gold_columns_prediction": {
+          "excluded": {
+            "excluded": 586,
+            "included": 50
+          },
+          "included": {
+            "excluded": 51,
+            "included": 38
+          }
+        },
+        "per_class": {
+          "excluded": {
+            "tp": 586,
+            "fp": 51,
+            "fn": 50,
+            "precision": 0.9199372056514914,
+            "recall": 0.9213836477987422,
+            "f1": 0.9206598586017282,
+            "gold_support": 636,
+            "predicted_positive": 637
+          },
+          "included": {
+            "tp": 38,
+            "fp": 50,
+            "fn": 51,
+            "precision": 0.4318181818181818,
+            "recall": 0.42696629213483145,
+            "f1": 0.4293785310734463,
+            "gold_support": 89,
+            "predicted_positive": 88
+          }
+        },
+        "gold_counts": {
+          "excluded": 636,
+          "included": 89
+        },
+        "prediction_counts": {
+          "excluded": 637,
+          "included": 88
+        },
+        "strict_policy": "Only Include counts positive; Maybe is non-Include for this score.",
+        "three_way_confusion": {
+          "excluded": {
+            "include": 50,
+            "exclude": 168,
+            "maybe": 418
+          },
+          "included": {
+            "include": 38,
+            "exclude": 0,
+            "maybe": 51
+          }
+        },
+        "maybe_count": 469,
+        "maybe_rate": 0.646896551724138,
+        "non_maybe_suggestion_rate": 0.35310344827586204,
+        "eligible_records_suggested_exclude": 0,
+        "eligible_retention_if_maybe_stays_for_review": 1.0,
+        "fraction_records_retained_if_only_exclude_removed": 0.7682758620689655,
+        "included_reference_count": 89,
+        "missing_abstract_count": 10,
+        "predicted_exclusions_with_reason": 168,
+        "predicted_exclusion_count": 168,
+        "all_excluded_baseline_accuracy": 0.8772413793103448,
+        "all_excluded_baseline_positive_f1": 0.0
+      },
+      "pooled": {
+        "n": 1865,
+        "accuracy": 0.618230563002681,
+        "macro_f1": 0.4680274855937798,
+        "confusion_matrix_rows_gold_columns_prediction": {
+          "excluded": {
+            "excluded": 1072,
+            "included": 652
+          },
+          "included": {
+            "excluded": 60,
+            "included": 81
+          }
+        },
+        "per_class": {
+          "excluded": {
+            "tp": 1072,
+            "fp": 60,
+            "fn": 652,
+            "precision": 0.9469964664310954,
+            "recall": 0.6218097447795824,
+            "f1": 0.7507002801120448,
+            "gold_support": 1724,
+            "predicted_positive": 1132
+          },
+          "included": {
+            "tp": 81,
+            "fp": 652,
+            "fn": 60,
+            "precision": 0.11050477489768076,
+            "recall": 0.574468085106383,
+            "f1": 0.1853546910755149,
+            "gold_support": 141,
+            "predicted_positive": 733
+          }
+        },
+        "gold_counts": {
+          "excluded": 1724,
+          "included": 141
+        },
+        "prediction_counts": {
+          "excluded": 1132,
+          "included": 733
+        },
+        "strict_policy": "Only Include counts positive; Maybe is non-Include for this score.",
+        "three_way_confusion": {
+          "excluded": {
+            "include": 652,
+            "exclude": 212,
+            "maybe": 860
+          },
+          "included": {
+            "include": 81,
+            "exclude": 3,
+            "maybe": 57
+          }
+        },
+        "maybe_count": 917,
+        "maybe_rate": 0.49168900804289545,
+        "non_maybe_suggestion_rate": 0.5083109919571045,
+        "eligible_records_suggested_exclude": 3,
+        "eligible_retention_if_maybe_stays_for_review": 0.9787234042553191,
+        "fraction_records_retained_if_only_exclude_removed": 0.8847184986595175,
+        "included_reference_count": 141,
+        "missing_abstract_count": 75,
+        "predicted_exclusions_with_reason": 215,
+        "predicted_exclusion_count": 215,
+        "all_excluded_baseline_accuracy": 0.924396782841823,
+        "all_excluded_baseline_positive_f1": 0.0
+      }
+    },
+    "timing": {
+      "calls": 1865,
+      "total_seconds": 261.71643800007223,
+      "median_ms": 0.9480000007897615,
+      "p95_ms_nearest_rank": 4.140000000916189
+    },
+    "repeatable_unchanged_calls": 1865,
+    "calls_checked": 1865
+  },
+  "pico": {
+    "documents": 186,
+    "official_tokens": 50907,
+    "modes": {
+      "I_plus_C": {
+        "P": {
+          "token": {
+            "tp": 850,
+            "fp": 529,
+            "fn": 3878,
+            "precision": 0.6163886874546773,
+            "recall": 0.17978003384094754,
+            "f1": 0.27836908465695104,
+            "gold_support": 4728,
+            "predicted_positive": 1379
+          },
+          "exact_span": {
+            "tp": 2,
+            "fp": 159,
+            "fn": 612,
+            "precision": 0.012422360248447204,
+            "recall": 0.003257328990228013,
+            "f1": 0.005161290322580645,
+            "gold_support": 614,
+            "predicted_positive": 161
+          },
+          "label_presence": {
+            "tp": 76,
+            "fp": 0,
+            "fn": 110,
+            "precision": 1.0,
+            "recall": 0.40860215053763443,
+            "f1": 0.5801526717557252,
+            "gold_support": 186,
+            "predicted_positive": 76
+          }
+        },
+        "I": {
+          "token": {
+            "tp": 587,
+            "fp": 3461,
+            "fn": 3168,
+            "precision": 0.1450098814229249,
+            "recall": 0.15632490013315578,
+            "f1": 0.1504549532231193,
+            "gold_support": 3755,
+            "predicted_positive": 4048
+          },
+          "exact_span": {
+            "tp": 1,
+            "fp": 432,
+            "fn": 1716,
+            "precision": 0.0023094688221709007,
+            "recall": 0.0005824111822947001,
+            "f1": 0.0009302325581395349,
+            "gold_support": 1717,
+            "predicted_positive": 433
+          },
+          "label_presence": {
+            "tp": 148,
+            "fp": 0,
+            "fn": 38,
+            "precision": 1.0,
+            "recall": 0.7956989247311828,
+            "f1": 0.8862275449101796,
+            "gold_support": 186,
+            "predicted_positive": 148
+          }
+        },
+        "O": {
+          "token": {
+            "tp": 217,
+            "fp": 402,
+            "fn": 7821,
+            "precision": 0.3505654281098546,
+            "recall": 0.026996765364518536,
+            "f1": 0.050132840475915444,
+            "gold_support": 8038,
+            "predicted_positive": 619
+          },
+          "exact_span": {
+            "tp": 0,
+            "fp": 62,
+            "fn": 1773,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "gold_support": 1773,
+            "predicted_positive": 62
+          },
+          "label_presence": {
+            "tp": 44,
+            "fp": 0,
+            "fn": 142,
+            "precision": 1.0,
+            "recall": 0.23655913978494625,
+            "f1": 0.3826086956521739,
+            "gold_support": 186,
+            "predicted_positive": 44
+          }
+        },
+        "micro": {
+          "token": {
+            "tp": 1654,
+            "fp": 4392,
+            "fn": 14867,
+            "precision": 0.27356930201786306,
+            "recall": 0.10011500514496702,
+            "f1": 0.14658572251517704,
+            "gold_support": 16521,
+            "predicted_positive": 6046
+          },
+          "exact_span": {
+            "tp": 3,
+            "fp": 653,
+            "fn": 4101,
+            "precision": 0.004573170731707317,
+            "recall": 0.0007309941520467836,
+            "f1": 0.0012605042016806723,
+            "gold_support": 4104,
+            "predicted_positive": 656
+          },
+          "label_presence": {
+            "tp": 268,
+            "fp": 0,
+            "fn": 290,
+            "precision": 1.0,
+            "recall": 0.48028673835125446,
+            "f1": 0.648910411622276,
+            "gold_support": 558,
+            "predicted_positive": 268
+          }
+        },
+        "macro_token_f1": 0.15965229278532858
+      },
+      "I_only": {
+        "P": {
+          "token": {
+            "tp": 850,
+            "fp": 529,
+            "fn": 3878,
+            "precision": 0.6163886874546773,
+            "recall": 0.17978003384094754,
+            "f1": 0.27836908465695104,
+            "gold_support": 4728,
+            "predicted_positive": 1379
+          },
+          "exact_span": {
+            "tp": 2,
+            "fp": 159,
+            "fn": 612,
+            "precision": 0.012422360248447204,
+            "recall": 0.003257328990228013,
+            "f1": 0.005161290322580645,
+            "gold_support": 614,
+            "predicted_positive": 161
+          },
+          "label_presence": {
+            "tp": 76,
+            "fp": 0,
+            "fn": 110,
+            "precision": 1.0,
+            "recall": 0.40860215053763443,
+            "f1": 0.5801526717557252,
+            "gold_support": 186,
+            "predicted_positive": 76
+          }
+        },
+        "I": {
+          "token": {
+            "tp": 250,
+            "fp": 852,
+            "fn": 3505,
+            "precision": 0.22686025408348456,
+            "recall": 0.06657789613848203,
+            "f1": 0.10294420424130121,
+            "gold_support": 3755,
+            "predicted_positive": 1102
+          },
+          "exact_span": {
+            "tp": 1,
+            "fp": 118,
+            "fn": 1716,
+            "precision": 0.008403361344537815,
+            "recall": 0.0005824111822947001,
+            "f1": 0.0010893246187363835,
+            "gold_support": 1717,
+            "predicted_positive": 119
+          },
+          "label_presence": {
+            "tp": 82,
+            "fp": 0,
+            "fn": 104,
+            "precision": 1.0,
+            "recall": 0.44086021505376344,
+            "f1": 0.6119402985074627,
+            "gold_support": 186,
+            "predicted_positive": 82
+          }
+        },
+        "O": {
+          "token": {
+            "tp": 217,
+            "fp": 402,
+            "fn": 7821,
+            "precision": 0.3505654281098546,
+            "recall": 0.026996765364518536,
+            "f1": 0.050132840475915444,
+            "gold_support": 8038,
+            "predicted_positive": 619
+          },
+          "exact_span": {
+            "tp": 0,
+            "fp": 62,
+            "fn": 1773,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "gold_support": 1773,
+            "predicted_positive": 62
+          },
+          "label_presence": {
+            "tp": 44,
+            "fp": 0,
+            "fn": 142,
+            "precision": 1.0,
+            "recall": 0.23655913978494625,
+            "f1": 0.3826086956521739,
+            "gold_support": 186,
+            "predicted_positive": 44
+          }
+        },
+        "micro": {
+          "token": {
+            "tp": 1317,
+            "fp": 1783,
+            "fn": 15204,
+            "precision": 0.4248387096774194,
+            "recall": 0.07971672416923915,
+            "f1": 0.13424392232811783,
+            "gold_support": 16521,
+            "predicted_positive": 3100
+          },
+          "exact_span": {
+            "tp": 3,
+            "fp": 339,
+            "fn": 4101,
+            "precision": 0.008771929824561403,
+            "recall": 0.0007309941520467836,
+            "f1": 0.001349527665317139,
+            "gold_support": 4104,
+            "predicted_positive": 342
+          },
+          "label_presence": {
+            "tp": 202,
+            "fp": 0,
+            "fn": 356,
+            "precision": 1.0,
+            "recall": 0.36200716845878134,
+            "f1": 0.531578947368421,
+            "gold_support": 558,
+            "predicted_positive": 202
+          }
+        },
+        "macro_token_f1": 0.1438153764580559
+      }
+    },
+    "predicted_spans": 715,
+    "valid_offset_spans": 715,
+    "offset_validity": 1.0,
+    "repeatable_calls": 186,
+    "timing": {
+      "calls": 186,
+      "total_seconds": 0.674944400008826,
+      "median_ms": 3.1882000002951827,
+      "p95_ms_nearest_rank": 7.396199998765951
+    },
+    "comparator_gold_metric": null
+  },
+  "dedup_quality": {
+    "status": "not measured",
+    "reason": "No expert duplicate-pair ground truth in selected corpora"
+  },
+  "deployment": {
+    "status": "not verified",
+    "note": "User plans deployment today; no deployed URL supplied"
+  }
+}

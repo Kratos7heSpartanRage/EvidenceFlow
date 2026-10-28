@@ -31,3 +31,6 @@ Thumbs.db
 *.egg-info/
 *.db-shm
 *.db-wal
+
+# External evaluation corpora: local testing only; never redistribute raw data
+.eval_data/
