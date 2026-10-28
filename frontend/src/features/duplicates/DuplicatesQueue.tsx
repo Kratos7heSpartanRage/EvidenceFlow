@@ -1,42 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { api, getActiveReviewer } from '../../lib/api';
-import { DuplicatePair } from '../../types/api';
+import { AlertTriangle, Check, GitMerge, ShieldAlert, X } from 'lucide-react';
+import { useState } from 'react';
 import { DedupTierBadge } from '../../components/ui/Badge';
-import { GitMerge, Check, X, AlertTriangle, Layers, ArrowRight, ExternalLink, ShieldAlert, Sparkles } from 'lucide-react';
+import { api, getActiveReviewer } from '../../lib/api';
+import { useAction, useData, useWorkspace } from '../../lib/workspace';
+import type { EntityId } from '../../types/api';
 
 export function DuplicatesQueue() {
-  const [pairs, setPairs] = useState<DuplicatePair[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { reviewId } = useWorkspace();
+
   const [tierFilter, setTierFilter] = useState<'all' | 'uncertain' | 'auto'>('all');
-  const [activePairId, setActivePairId] = useState<number | null>(null);
+  const [activePairId, setActivePairId] = useState<EntityId | null>(null);
   const [decisionNote, setDecisionNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const loadPairs = async () => {
-    try {
-      setLoading(true);
-      const params = tierFilter === 'all' ? undefined : { tier: tierFilter };
-      const data = await api.getDuplicatePairs(1, params);
-      setPairs(data);
-      if (data.length > 0 && !activePairId) {
-        setActivePairId(data[0].id);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [pairs, , loadPairs] = useData(['pairs', tierFilter], () => api.getDuplicatePairs(reviewId, tierFilter === 'all' ? undefined : { tier: tierFilter }));
 
-  useEffect(() => {
-    loadPairs();
-  }, [tierFilter]);
+  const summary = pairs.find(p => p.id === activePairId) || pairs[0];
+  const [details] = useData<import('../../types/api').LiteratureRecord[]>(['pair-records', summary?.id], () => summary ? Promise.all([api.getRecord(summary.record_a_id), api.getRecord(summary.record_b_id)]) : Promise.resolve([]));
+  const activePair = summary ? { ...summary, record_a: details[0], record_b: details[1] } : undefined;
 
-  const activePair = pairs.find(p => p.id === activePairId) || pairs[0];
-
-  const handleDecision = async (decision: 'confirm' | 'reject') => {
+  const handleDecision = useAction(async (decision: 'confirm' | 'reject') => {
     if (!activePair) return;
     try {
       setSubmitting(true);
-      await api.submitPairDecision(1, {
+      await api.submitPairDecision(reviewId, {
         record_a_id: activePair.record_a_id,
         record_b_id: activePair.record_b_id,
         decision,
@@ -48,15 +35,7 @@ export function DuplicatesQueue() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  if (loading && pairs.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div>
-      </div>
-    );
-  }
+  });
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -79,32 +58,29 @@ export function DuplicatesQueue() {
         <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-lg border border-slate-800 text-xs">
           <button
             onClick={() => setTierFilter('all')}
-            className={`px-3 py-1.5 rounded-md font-medium transition ${
-              tierFilter === 'all' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
+            className={`px-3 py-1.5 rounded-md font-medium transition ${tierFilter === 'all' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              }`}
           >
             All Pairs ({pairs.length})
           </button>
           <button
             onClick={() => setTierFilter('uncertain')}
-            className={`px-3 py-1.5 rounded-md font-medium transition ${
-              tierFilter === 'uncertain' ? 'bg-amber-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
+            className={`px-3 py-1.5 rounded-md font-medium transition ${tierFilter === 'uncertain' ? 'bg-amber-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              }`}
           >
             Uncertain Pairs
           </button>
           <button
             onClick={() => setTierFilter('auto')}
-            className={`px-3 py-1.5 rounded-md font-medium transition ${
-              tierFilter === 'auto' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
+            className={`px-3 py-1.5 rounded-md font-medium transition ${tierFilter === 'auto' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              }`}
           >
             Auto Strong
           </button>
         </div>
       </div>
 
-      {pairs.length === 0 ? (
+      {!activePair ? (
         <div className="p-12 text-center rounded-xl bg-slate-900/40 border border-slate-800 text-slate-400 text-sm">
           No duplicate pairs found matching the current filter.
         </div>
@@ -123,11 +99,10 @@ export function DuplicatesQueue() {
                     setActivePairId(p.id);
                     setDecisionNote('');
                   }}
-                  className={`w-full text-left p-3.5 rounded-xl border text-xs transition-all space-y-2 ${
-                    isSelected
+                  className={`w-full text-left p-3.5 rounded-xl border text-xs transition-all space-y-2 ${isSelected
                       ? 'bg-slate-800/80 border-brand-500/60 shadow-lg'
                       : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800/40'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <DedupTierBadge tier={p.tier} score={p.score} />

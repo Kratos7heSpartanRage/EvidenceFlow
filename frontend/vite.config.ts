@@ -1,13 +1,14 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import react from '@vitejs/plugin-react';
+import { loadEnv } from 'vite';
+import { defineConfig } from 'vitest/config';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   server: {
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: loadEnv(mode, process.cwd(), '').VITE_API_PROXY_TARGET || 'http://127.0.0.1:8000',
         changeOrigin: true,
       }
     }
@@ -17,4 +18,4 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: './src/tests/setup.ts',
   }
-} as any)
+}));

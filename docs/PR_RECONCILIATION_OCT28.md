@@ -1,5 +1,7 @@
 # PR reconciliation — 28 October 2026
 
+> Historical report for PRs #10–#13. Frontend wiring and lint cleanup were completed subsequently; see [the live frontend guide](LIVE_FRONTEND_INTEGRATION.md) for current status.
+
 ## Scope
 
 - PR #10 and PR #11 share the same head commit and contain the same review APIs.

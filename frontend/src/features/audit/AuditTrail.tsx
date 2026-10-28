@@ -1,32 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import { Bot, ChevronDown, ChevronRight, History, Search, User } from 'lucide-react';
+import { useState } from 'react';
 import { api } from '../../lib/api';
-import { AuditEvent } from '../../types/api';
-import { ShieldCheck, History, User, Bot, ChevronDown, ChevronRight, FileText, Search, Clock } from 'lucide-react';
+import { useData, useWorkspace } from '../../lib/workspace';
+import type { EntityId } from '../../types/api';
 
 export function AuditTrail() {
-  const [events, setEvents] = useState<AuditEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const { reviewId } = useWorkspace();
+  const [events] = useData(['audit'], () => api.getAuditEvents(reviewId));
+  const [expandedId, setExpandedId] = useState<EntityId | null>(null);
   const [actorFilter, setActorFilter] = useState<'all' | 'reviewer' | 'system'>('all');
   const [search, setSearch] = useState('');
 
-  const loadAudit = async () => {
-    try {
-      setLoading(true);
-      const data = await api.getAuditEvents(1);
-      setEvents(data);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadAudit();
-  }, []);
-
   const filteredEvents = events.filter(e => {
-    if (actorFilter === 'system' && !e.actor.startsWith('system')) return false;
-    if (actorFilter === 'reviewer' && !e.actor.startsWith('reviewer:')) return false;
+    if (actorFilter === 'system' && !e.actor.toLowerCase().startsWith('system')) return false;
+    if (actorFilter === 'reviewer' && e.actor.toLowerCase().startsWith('system')) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       return e.action.toLowerCase().includes(q) || e.actor.toLowerCase().includes(q) || e.entity_type.toLowerCase().includes(q);
@@ -47,7 +34,7 @@ export function AuditTrail() {
           </div>
           <h2 className="text-xl font-bold text-slate-100 mt-1">Audit Trail & Provenance Log</h2>
           <p className="text-xs text-slate-400">
-            Cryptographically verifiable audit log. Every human override, exclusion rationale, and pipeline run step is preserved.
+            Append-only audit log. Every human override, exclusion rationale, and pipeline run step is preserved.
           </p>
         </div>
 
@@ -55,25 +42,22 @@ export function AuditTrail() {
         <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-lg border border-slate-800 text-xs">
           <button
             onClick={() => setActorFilter('all')}
-            className={`px-3 py-1.5 rounded-md font-medium transition ${
-              actorFilter === 'all' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
+            className={`px-3 py-1.5 rounded-md font-medium transition ${actorFilter === 'all' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              }`}
           >
             All Events ({events.length})
           </button>
           <button
             onClick={() => setActorFilter('reviewer')}
-            className={`px-3 py-1.5 rounded-md font-medium transition ${
-              actorFilter === 'reviewer' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
+            className={`px-3 py-1.5 rounded-md font-medium transition ${actorFilter === 'reviewer' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              }`}
           >
             Human Reviewers
           </button>
           <button
             onClick={() => setActorFilter('system')}
-            className={`px-3 py-1.5 rounded-md font-medium transition ${
-              actorFilter === 'system' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
+            className={`px-3 py-1.5 rounded-md font-medium transition ${actorFilter === 'system' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              }`}
           >
             System Runs
           </button>
@@ -107,7 +91,7 @@ export function AuditTrail() {
           <div className="space-y-2">
             {filteredEvents.map(evt => {
               const isExpanded = expandedId === evt.id;
-              const isSystem = evt.actor.startsWith('system');
+              const isSystem = evt.actor.toLowerCase().startsWith('system');
 
               return (
                 <div
@@ -120,11 +104,10 @@ export function AuditTrail() {
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`p-1.5 rounded-lg border ${
-                          isSystem
+                        className={`p-1.5 rounded-lg border ${isSystem
                             ? 'bg-slate-800 border-slate-700 text-slate-400'
                             : 'bg-brand-500/10 border-brand-500/20 text-brand-400'
-                        }`}
+                          }`}
                       >
                         {isSystem ? <Bot className="w-4 h-4" /> : <User className="w-4 h-4" />}
                       </div>

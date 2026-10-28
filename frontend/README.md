@@ -1,50 +1,26 @@
-# React + TypeScript + Vite
+# EvidenceFlow frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The workspace connects to FastAPI. It never substitutes sample records when the backend is unavailable.
 
-Currently, two official plugins are available:
+## Start locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Start the migrated backend on port 8000 (see `../docs/LIVE_FRONTEND_INTEGRATION.md`). Then:
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```sh
+npm ci
+npm run dev
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+Open the URL printed by Vite, enter the workspace, and create a review or select an existing one. Define the question/PICO and criteria before creating a query. Preview the query, approve import, and follow progress in the run drawer.
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+All requests pass through `src/lib/api.ts`. Backend UUIDs remain intact; that client maps wire types from `src/types/backend.ts` into the existing workspace view models in `src/types/api.ts`. TanStack Query caches are scoped by review ID and refreshed after mutations.
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+Copy `.env.example` to `.env.local` to customize the API prefix or development proxy. A deployed build needs a same-origin `/api` reverse proxy or `VITE_API_BASE_URL` pointing to the backend at build time. The development proxy is not a production server.
+
+```sh
+npm run test
+npm run lint
+npm run build
 ```
+
+Fixtures under `src/mocks/` are imported by tests only. See the live integration guide for limitations and verified workflows.

@@ -1,95 +1,84 @@
-import React, { useState, useEffect } from 'react';
-import { api } from '../../lib/api';
-import { QueryVersion, PreviewResponse } from '../../types/api';
+import { CheckCircle, ChevronRight, Database, Eye, FileText, Play, Search } from 'lucide-react';
+import React, { useState } from 'react';
 import { NcbiDisclaimer } from '../../components/ui/NcbiDisclaimer';
+import { api } from '../../lib/api';
+import { useAction, useData, useWorkspace } from '../../lib/workspace';
+import type { EntityId } from '../../types/api';
+import { PreviewResponse } from '../../types/api';
 import { RunLogDrawer } from './RunLogDrawer';
-import { Search, Play, Eye, Clock, Database, ChevronRight, CheckCircle, AlertCircle, FileText, Calendar, Filter } from 'lucide-react';
 
 export function SearchBuilder() {
-  const [queries, setQueries] = useState<QueryVersion[]>([]);
-  const [selectedQuery, setSelectedQuery] = useState<QueryVersion | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { reviewId } = useWorkspace();
+  const [queries, setQueries, loadQueries] = useData(['queries'], () => api.getQueries(reviewId));
+  const [selectedId, setSelectedId] = useState<EntityId | null>(null);
+  const selectedQuery = queries.find(q => q.id === selectedId) || queries[queries.length - 1];
+
 
   // Form state
-  const [expression, setExpression] = useState('("type 2 diabetes" OR "type II diabetes") AND metformin AND placebo');
+  const [expression, setExpression] = useState('');
   const [source, setSource] = useState<'europe_pmc' | 'pubmed'>('europe_pmc');
-  const [dateFrom, setDateFrom] = useState('2015-01-01');
-  const [dateTo, setDateTo] = useState('2025-12-31');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [synonymExpansion, setSynonymExpansion] = useState(false);
-  const [importCap, setImportCap] = useState(500);
-  const [label, setLabel] = useState('');
+  const [titleAbstractOnly, setTitleAbstractOnly] = useState(false);
 
   // Preview state
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
   // In-flight run state
-  const [activeRunId, setActiveRunId] = useState<number | null>(null);
+  const [activeRun, setActiveRun] = useState<{ queryId: EntityId; runId: EntityId; } | null>(() => {
+    try { return JSON.parse(localStorage.getItem(`evidenceflow_run_${reviewId}`) || 'null'); } catch { return null; }
+  });
+  const activeRunId = activeRun?.queryId === selectedQuery?.id ? activeRun.runId : null;
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
-  const loadQueries = async () => {
-    try {
-      setLoading(true);
-      const data = await api.getQueries(1);
-      setQueries(data);
-      if (data.length > 0) {
-        setSelectedQuery(data[data.length - 1]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadQueries();
-  }, []);
 
   const handleInsertOperator = (op: string) => {
     setExpression(prev => `${prev} ${op} `);
   };
 
-  const handleCreateQuery = async (e: React.FormEvent) => {
+  const handleCreateQuery = useAction(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!expression.trim()) return;
+    if (dateFrom && dateTo && dateFrom > dateTo) throw new Error('Date From must be before Date To.');
 
-    const newQ = await api.createQuery(1, {
+    const newQ = await api.createQuery(reviewId, {
       expression: expression.trim(),
       source,
       date_from: dateFrom,
       date_to: dateTo,
-      options_json: { synonym: synonymExpansion },
-      import_cap: importCap,
-      label: label.trim() || undefined,
+      options_json: { synonym: synonymExpansion, title_abstract_only: titleAbstractOnly },
       parent_id: selectedQuery?.id || null
     });
 
     setQueries(prev => [...prev, newQ]);
-    setSelectedQuery(newQ);
+    setSelectedId(newQ.id);
     setPreviewData(null);
-  };
+  });
 
-  const handlePreview = async () => {
+  const handlePreview = useAction(async () => {
     if (!selectedQuery) return;
     try {
       setPreviewLoading(true);
       const res = await api.previewQuery(selectedQuery.id);
       setPreviewData(res);
       // update local hit count
-      setSelectedQuery({ ...selectedQuery, status: 'previewed', hit_count: res.hit_count });
       setQueries(prev => prev.map(q => q.id === selectedQuery.id ? { ...q, status: 'previewed', hit_count: res.hit_count } : q));
     } finally {
       setPreviewLoading(false);
     }
-  };
+  });
 
-  const handleApproveImport = async () => {
+  const handleApproveImport = useAction(async () => {
     if (!selectedQuery) return;
     const res = await api.importQuery(selectedQuery.id);
-    setActiveRunId(res.run_id);
+    const run = { queryId: selectedQuery.id, runId: res.run_id };
+    setActiveRun(run);
+    localStorage.setItem(`evidenceflow_run_${reviewId}`, JSON.stringify(run));
     setIsDrawerOpen(true);
     // refresh queries
-    setTimeout(loadQueries, 1000);
-  };
+    await loadQueries();
+  });
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -114,16 +103,15 @@ export function SearchBuilder() {
             <button
               key={q.id}
               onClick={() => {
-                setSelectedQuery(q);
+                setSelectedId(q.id);
                 setPreviewData(null);
               }}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium font-mono whitespace-nowrap transition ${
-                selectedQuery?.id === q.id
+              className={`px-3 py-1.5 rounded-md text-xs font-medium font-mono whitespace-nowrap transition ${selectedQuery?.id === q.id
                   ? 'bg-brand-600 text-white shadow'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
+                }`}
             >
-              v{q.version_no} ({q.hit_count ? `${q.hit_count} hits` : q.status})
+              v{q.version_no} ({q.hit_count != null ? `${q.hit_count} hits` : q.status})
             </button>
           ))}
         </div>
@@ -180,7 +168,7 @@ export function SearchBuilder() {
                 onChange={e => setExpression(e.target.value)}
                 required
                 className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 font-mono text-xs focus:outline-none focus:border-brand-500 min-h-[85px] leading-relaxed"
-                placeholder='("type 2 diabetes" OR T2D) AND metformin AND placebo'
+                aria-label="Boolean Search Expression" placeholder="Enter a literature search expression"
               />
             </div>
 
@@ -190,7 +178,7 @@ export function SearchBuilder() {
                 <label className="font-semibold text-slate-300 block mb-1">Literature Database:</label>
                 <select
                   value={source}
-                  onChange={e => setSource(e.target.value as any)}
+                  onChange={e => setSource(e.target.value as 'europe_pmc' | 'pubmed')}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200"
                 >
                   <option value="europe_pmc">Europe PMC (REST API)</option>
@@ -229,22 +217,14 @@ export function SearchBuilder() {
                 />
                 <label htmlFor="synonymToggle" className="cursor-pointer text-slate-300">
                   <span className="font-semibold block">MeSH Synonym Expansion</span>
-                  <span className="text-[10px] text-slate-400 block">Expand with MeSH related terms</span>
+                  <span className="text-[10px] text-slate-400 block">Use source-supported synonym expansion</span>
                 </label>
               </div>
 
-              <div>
-                <label className="font-semibold text-slate-300 block mb-1">Import Cap (Hits Limit):</label>
-                <input
-                  type="number"
-                  min="50"
-                  max="1000"
-                  step="50"
-                  value={importCap}
-                  onChange={e => setImportCap(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 font-mono"
-                />
-              </div>
+              <label className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex gap-2 items-center">
+                <input type="checkbox" checked={titleAbstractOnly} onChange={e => setTitleAbstractOnly(e.target.checked)} />
+                Titles and abstracts only
+              </label>
             </div>
 
             {/* Submit create version */}
@@ -316,7 +296,7 @@ export function SearchBuilder() {
                 <button
                   type="button"
                   onClick={handleApproveImport}
-                  disabled={selectedQuery.status === 'importing'}
+                  disabled={selectedQuery.status === 'draft' || previewLoading}
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-lg shadow-emerald-950/50 transition"
                 >
                   <Play className="w-4 h-4" />
@@ -365,13 +345,15 @@ export function SearchBuilder() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow transition"
             >
               <CheckCircle className="w-3.5 h-3.5" />
-              <span>Approve & Fetch All ({Math.min(previewData.hit_count, importCap)} records)</span>
+              <span>Approve & Import</span>
             </button>
           </div>
 
+          {previewData.warnings?.map((warning, i) => <p key={i} className="text-amber-300 text-xs">{warning}</p>)}
+          <p className="text-xs text-slate-400">Import size is controlled by the backend configuration. Run logs report truncation and the actual record count.</p>
           <div className="space-y-3">
             {previewData.sample_records.map(r => (
-              <div key={r.id} className="p-3.5 rounded-lg bg-slate-950/70 border border-slate-800 space-y-1.5">
+              <div key={`${r.source}:${r.source_record_id}`} className="p-3.5 rounded-lg bg-slate-950/70 border border-slate-800 space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
                   <h4 className="text-xs font-bold text-slate-200">{r.title}</h4>
                   <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 font-mono text-slate-400 flex-shrink-0">
@@ -379,12 +361,12 @@ export function SearchBuilder() {
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-400 flex items-center gap-2 font-mono">
-                  <span>{(r.authors || r.authors_json || []).slice(0, 2).join(', ')}{((r.authors || r.authors_json || []).length > 2) ? ' et al.' : ''}</span>
+                  <span>{(r.authors || []).slice(0, 2).map(a => typeof a === 'string' ? a : a.full_name).join(', ')}{((r.authors || []).length > 2) ? ' et al.' : ''}</span>
                   <span>?</span>
                   <span>{r.year}</span>
                   <span>?</span>
                   <span className="italic">{r.journal}</span>
-                  {(r.doi || r.doi_norm) && <span>? DOI: {r.doi || r.doi_norm}</span>}
+                  {r.doi && <span>? DOI: {r.doi}</span>}
                 </div>
                 {r.abstract && (
                   <p className="text-xs text-slate-300/90 leading-relaxed line-clamp-2">

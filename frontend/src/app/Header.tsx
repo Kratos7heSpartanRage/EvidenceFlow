@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { getActiveReviewer, setActiveReviewer, api, mockStore } from '../lib/api';
-import { User, Activity, RotateCcw, ShieldCheck, ChevronDown, Check, Home, ArrowLeft } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowLeft, Check, ChevronDown, RotateCcw, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { api, getActiveReviewer, setActiveReviewer } from '../lib/api';
 
 interface HeaderProps {
   onRefresh: () => void;
@@ -9,11 +10,11 @@ interface HeaderProps {
 
 export function Header({ onRefresh, onBackToLanding }: HeaderProps) {
   const [reviewer, setReviewer] = useState(getActiveReviewer());
-  const [healthMode, setHealthMode] = useState<'live' | 'mock'>('mock');
+  const health = useQuery({ queryKey: ['health'], queryFn: api.getHealth, refetchInterval: 15000 });
+  const healthMode = health.isSuccess ? 'live' : health.isPending ? 'connecting' : 'offline';
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
-    api.getHealth().then(h => setHealthMode(h.mode));
 
     const handleReviewerChange = () => {
       setReviewer(getActiveReviewer());
@@ -31,15 +32,8 @@ export function Header({ onRefresh, onBackToLanding }: HeaderProps) {
     onRefresh();
   };
 
-  const handleResetDemoState = () => {
-    if (confirm('Reset in-memory demo state back to pristine baseline?')) {
-      mockStore.reset();
-      onRefresh();
-    }
-  };
-
   return (
-    <header className="h-16 px-6 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-40">
+    <header className="min-h-16 py-3 gap-3 flex-wrap px-4 md:px-6 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-40">
       {/* Brand & Subtitle & Back to Landing */}
       <div className="flex items-center gap-4">
         {onBackToLanding && (
@@ -79,25 +73,24 @@ export function Header({ onRefresh, onBackToLanding }: HeaderProps) {
       <div className="flex items-center gap-3">
         {/* Backend status badge */}
         <div
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium border ${
-            healthMode === 'live'
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium border ${healthMode === 'live'
               ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
               : 'bg-brand-500/10 border-brand-500/30 text-brand-300'
-          }`}
-          title={healthMode === 'live' ? 'Connected to live FastAPI backend' : 'Running in local verified mock state for instant demo'}
+            }`}
+          title={healthMode === 'live' ? 'Connected to live FastAPI backend' : 'Backend unavailable; use Refresh to reconnect'}
         >
           <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
-          <span className="hidden sm:inline">{healthMode === 'live' ? 'Backend Live' : 'Demo Mode (Full State)'}</span>
+          <span className="hidden sm:inline">{healthMode === 'live' ? 'Backend Live' : healthMode === 'connecting' ? 'Connecting…' : 'Backend offline'}</span>
         </div>
 
         {/* Reset Mock State Button */}
         <button
-          onClick={handleResetDemoState}
+          onClick={onRefresh}
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 transition"
-          title="Reset sample data back to baseline"
+          title="Refresh data from backend"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span className="hidden md:inline">Reset Demo</span>
+          <span className="hidden md:inline">Refresh</span>
         </button>
 
         {/* Active Reviewer Selector Dropdown */}
@@ -120,9 +113,8 @@ export function Header({ onRefresh, onBackToLanding }: HeaderProps) {
                 <button
                   key={r}
                   onClick={() => handleSelectReviewer(r)}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between text-xs transition ${
-                    reviewer === r ? 'bg-brand-600 text-white font-semibold' : 'text-slate-300 hover:bg-slate-800'
-                  }`}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between text-xs transition ${reviewer === r ? 'bg-brand-600 text-white font-semibold' : 'text-slate-300 hover:bg-slate-800'
+                    }`}
                 >
                   <span>{r}</span>
                   {reviewer === r && <Check className="w-3.5 h-3.5 text-white" />}

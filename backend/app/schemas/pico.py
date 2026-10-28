@@ -21,6 +21,7 @@ class PicoPatchIn(BaseModel):
     """Batch PICO curation payload."""
 
     ops: list[PicoOp] = Field(..., min_length=1, description="List of PICO curation operations")
+    reviewer: str = Field(default="Human Reviewer", min_length=1)
 
 
 class PicoPatchResponse(BaseModel):

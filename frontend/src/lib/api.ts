@@ -1,850 +1,320 @@
-// Centralized API Client for EvidenceFlow
-// Implements all contracts in docs/API_CONTRACTS.md
-// Seamlessly delegates to live backend (/api) with automatic mock state fallback for offline dev/demo
-
-import {
-  Review,
+import type {
+  AuditEvent,
+  Conflict,
   CriteriaVersion,
   Criterion,
-  QueryVersion,
-  LiteratureRecord,
-  DuplicatePair,
-  PairDecision,
-  ScreeningDecision,
-  PicoAnnotation,
-  Conflict,
-  PipelineRun,
+  DecisionType,
   DiffSummary,
-  AuditEvent,
+  DuplicatePair,
+  EntityId,
+  LiteratureRecord,
+  PicoAnnotation,
+  PipelineRun,
   PreviewResponse,
-  RecordListResponse
+  QueryVersion,
+  RecordListResponse,
+  Review,
+  ScreeningDecision,
 } from '../types/api';
+import type * as Wire from '../types/backend';
 
-import {
-  mockReview,
-  mockCriteriaVersion,
-  mockQueryVersions,
-  mockRecords,
-  mockDuplicatePairs,
-  mockPairDecisions,
-  mockPicoAnnotations,
-  mockConflicts,
-  mockRuns,
-  mockDiffSummary,
-  mockAuditEvents
-} from '../mocks/mockData';
-
-// Track active reviewer in memory and localStorage
 export function getActiveReviewer(): string {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('evidenceflow_reviewer') || 'Member D';
-  }
-  return 'Member D';
+  return localStorage.getItem('evidenceflow_reviewer') || 'Reviewer';
 }
-
-export function setActiveReviewer(name: string): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('evidenceflow_reviewer', name);
-    window.dispatchEvent(new Event('reviewer_changed'));
-  }
-}
-
-// In-Memory Reactive State for Mock Fallback
-class MockStateStore {
-  review: Review = JSON.parse(JSON.stringify(mockReview));
-  criteriaVersion: CriteriaVersion = JSON.parse(JSON.stringify(mockCriteriaVersion));
-  queryVersions: QueryVersion[] = JSON.parse(JSON.stringify(mockQueryVersions));
-  records: LiteratureRecord[] = JSON.parse(JSON.stringify(mockRecords));
-  duplicatePairs: DuplicatePair[] = JSON.parse(JSON.stringify(mockDuplicatePairs));
-  pairDecisions: PairDecision[] = JSON.parse(JSON.stringify(mockPairDecisions));
-  picoAnnotations: PicoAnnotation[] = JSON.parse(JSON.stringify(mockPicoAnnotations));
-  conflicts: Conflict[] = JSON.parse(JSON.stringify(mockConflicts));
-  runs: PipelineRun[] = JSON.parse(JSON.stringify(mockRuns));
-  diffSummary: DiffSummary = JSON.parse(JSON.stringify(mockDiffSummary));
-  auditEvents: AuditEvent[] = JSON.parse(JSON.stringify(mockAuditEvents));
-
-  reset() {
-    this.review = JSON.parse(JSON.stringify(mockReview));
-    this.criteriaVersion = JSON.parse(JSON.stringify(mockCriteriaVersion));
-    this.queryVersions = JSON.parse(JSON.stringify(mockQueryVersions));
-    this.records = JSON.parse(JSON.stringify(mockRecords));
-    this.duplicatePairs = JSON.parse(JSON.stringify(mockDuplicatePairs));
-    this.pairDecisions = JSON.parse(JSON.stringify(mockPairDecisions));
-    this.picoAnnotations = JSON.parse(JSON.stringify(mockPicoAnnotations));
-    this.conflicts = JSON.parse(JSON.stringify(mockConflicts));
-    this.runs = JSON.parse(JSON.stringify(mockRuns));
-    this.diffSummary = JSON.parse(JSON.stringify(mockDiffSummary));
-    this.auditEvents = JSON.parse(JSON.stringify(mockAuditEvents));
-  }
-}
-
-export const mockStore = new MockStateStore();
-
-let isBackendAvailable: boolean | null = null;
-
-async function checkBackend(): Promise<boolean> {
-  if (isBackendAvailable !== null) return isBackendAvailable;
-  if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') {
-    isBackendAvailable = false;
-    return false;
-  }
-  try {
-    const res = await fetch('/api/health', { signal: AbortSignal.timeout(800) });
-    isBackendAvailable = res.ok;
-  } catch {
-    isBackendAvailable = false;
-  }
-  return isBackendAvailable;
+export function setActiveReviewer(name: string) {
+  localStorage.setItem('evidenceflow_reviewer', name.trim() || 'Reviewer');
+  window.dispatchEvent(new Event('reviewer_changed'));
 }
 
 export class ApiError extends Error {
-  code: string;
-  details?: Record<string, any>;
-  constructor(message: string, code: string, credentials?: Record<string, any>) {
+  constructor(message: string, public code: string, public details?: unknown) {
     super(message);
     this.name = 'ApiError';
-    this.code = code;
-    this.details = credentials;
   }
 }
-
+const baseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+export async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      method, headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError('Cannot reach the backend. Start the backend server, then retry.', 'NETWORK_ERROR');
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    const issues = payload?.error?.details?.errors || payload?.detail;
+    const message = (Array.isArray(issues) ? issues.map((item: { loc?: string[]; msg: string; }) => `${item.loc?.slice(1).join('.') || 'Request'}: ${item.msg}`).join('; ') : null) || payload?.error?.message || (Array.isArray(payload?.detail)
+      ? payload.detail.map((item: { loc?: string[]; msg: string; }) => `${item.loc?.slice(1).join('.') || 'Request'}: ${item.msg}`).join('; ')
+      : typeof payload?.detail === 'string' ? payload.detail : `Request failed (${response.status})`);
+    throw new ApiError(message, payload?.error?.code || `HTTP_${response.status}`, payload);
+  }
+  if (response.headers.get('content-type')?.includes('text/csv')) return await response.text() as T;
+  return response.json() as Promise<T>;
+}
+const id = (value: EntityId) => encodeURIComponent(String(value));
+function toCriterion(c: Wire.Criterion): Criterion {
+  return {
+    id: c.id, criteria_version_id: c.criteria_version_id, kind: c.type === 'inclusion' ? 'include' : 'exclude',
+    code: c.detector_rule || 'manual', label: c.label, reason: c.description,
+    detector: c.detector_rule ? 'rule' : 'manual_only', is_active: true,
+    detector_rule: c.detector_rule, field_target: c.field_target
+  };
+}
+function fromCriterion(c: Criterion): Wire.CriterionInput {
+  return {
+    type: c.kind === 'include' ? 'inclusion' : 'exclusion', label: c.label, description: c.reason,
+    detector_rule: c.detector_rule?.trim() || null, field_target: c.field_target || null
+  };
+}
+function toCriteria(c: Wire.CriteriaVersion): CriteriaVersion {
+  return { ...c, version_no: c.version_number, created_by: '', criteria: c.criteria.map(toCriterion) };
+}
+function toReview(r: Wire.Review): Review {
+  return {
+    ...r, population: r.pico?.population || r.pico?.P || '', intervention: r.pico?.intervention || r.pico?.I || '',
+    comparator: r.pico?.comparator || r.pico?.C || '', outcome: r.pico?.outcome || r.pico?.O || '',
+    active_criteria_version_id: r.active_criteria_version?.id,
+    stats: {
+      total_records: r.counts.total_records, unique_groups: r.counts.unique_studies,
+      included: r.counts.screened_included, excluded: r.counts.screened_excluded,
+      maybe: r.counts.screened_maybe, unscreened: r.counts.unscreened,
+      conflicts: r.counts.open_conflicts, uncertain_duplicates: 0
+    }
+  };
+}
+function toQuery(q: Wire.QueryVersion): QueryVersion {
+  return {
+    ...q, version_no: q.version_number, date_from: q.date_from || undefined,
+    date_to: q.date_to || undefined, status: q.status as QueryVersion['status'],
+    import_cap: 0, options_json: { synonym: q.expand_synonyms, title_abstract_only: q.title_abstract_only }
+  };
+}
+function toDecision(d: Wire.ScreeningDecision, reviewId: EntityId): ScreeningDecision {
+  return { ...d, review_id: reviewId, reviewer: d.reviewer_name, criteria_version_id: '', origin: d.origin };
+}
+function toPico(p: Wire.PicoSpan, recordId: EntityId): PicoAnnotation {
+  return {
+    ...p, record_id: recordId, label: p.element, start_char: p.start_index ?? 0,
+    end_char: p.end_index, status: (p.status || (p.is_confirmed ? 'confirmed' : 'suggested')) as PicoAnnotation['status'],
+    reviewer: p.reviewer || undefined, created_at: ''
+  };
+}
+function toRecord(r: Wire.RecordItem | Wire.RecordDetail): LiteratureRecord {
+  const detail = 'abstract' in r ? r as Wire.RecordDetail : undefined;
+  const authors = r.authors.map(a => typeof a === 'string' ? a : a.full_name);
+  const suggestion = r.suggestion;
+  return {
+    id: r.id, review_id: r.review_id, source: r.source as LiteratureRecord['source'],
+    source_record_id: r.source_record_id, title: r.title, title_norm: r.title.toLowerCase(),
+    abstract: detail?.abstract, authors_json: authors, first_author_norm: authors[0],
+    journal: r.journal, year: r.publication_year, doi_norm: r.doi, pmid: r.pmid,
+    group_id: r.group_id || undefined, group_members_count: detail ? detail.cluster_members.length + 1 : undefined,
+    is_representative: r.is_representative, is_hidden: r.is_hidden,
+    language: detail?.language, pub_types_json: detail?.publication_types || [], mesh_json: detail?.mesh_headings || [],
+    content_hash: '', created_at: '', updated_at: '',
+    current_decision: r.decision ? toDecision({ ...r.decision, record_id: r.id }, r.review_id) : null,
+    suggestion: suggestion ? {
+      id: suggestion.id, record_id: r.id, criteria_version_id: '', content_hash: '',
+      algo_version: suggestion.algorithm_version || '', suggestion: suggestion.suggested_decision,
+      criterion_id: suggestion.matched_criterion_id,
+      evidence_json: {
+        explanation: suggestion.evidence_snippets?.map(e => e.explanation).filter(Boolean).join(' ') || suggestion.matched_criterion_label || 'No evidence details supplied by the backend; human review required.',
+          rule_hits: suggestion.evidence_snippets?.flatMap(e => e.matched || []),
+          metadata_fields_used: suggestion.evidence_snippets?.filter(e => e.source === 'metadata').flatMap(e => e.field ? [e.field] : []),
+        strength: suggestion.confidence >= 1 ? 'strong' : suggestion.confidence > 0 ? 'weak' : 'none'
+      }, created_at: ''
+    } : null,
+    decision_history: detail?.decisions.map(d => toDecision({ ...d, record_id: r.id }, r.review_id)),
+    pico_annotations: detail?.pico_spans.map(p => toPico(p, r.id))
+  };
+}
+export interface RecordFilters {
+  status?: string; decision?: string; q?: string; version?: EntityId;
+  show_hidden?: boolean; page?: number; page_size?: number;
+}
+async function recordPages(reviewId: EntityId, params: RecordFilters = {}): Promise<RecordListResponse> {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && key !== 'show_hidden') search.set(key, String(value));
+  }
+  search.set('status', params.status || 'active');
+  search.set('representatives_only', String(!params.show_hidden));
+  search.set('page_size', String(params.page_size || 500));
+  search.set('page', String(params.page || 1));
+  const response = await request<{ items: Wire.RecordItem[]; total: number; page: number; page_size: number; }>(`/reviews/${id(reviewId)}/records?${search}`);
+  const items = response.items.map(toRecord);
+  if (params.page === undefined) {
+    for (let page = 2;items.length < response.total;page++) {
+      search.set('page', String(page));
+      const next = await request<typeof response>(`/reviews/${id(reviewId)}/records?${search}`);
+      if (!next.items.length) break;
+      items.push(...next.items.map(toRecord));
+    }
+  }
+  return { ...response, items, total_pages: Math.ceil(response.total / response.page_size) };
+}
 export const api = {
-  // Check backend health
-  async getHealth(): Promise<{ status: string; db: string; mode: 'live' | 'mock' }> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch('/api/health');
-      const data = await res.json();
-      return { ...data, mode: 'live' };
-    }
-    return { status: 'healthy', db: 'sqlite_in_memory', mode: 'mock' };
+  async getHealth() {
+    const health = await request<{ status: string; database: string; }>('/health');
+    if (health.database === 'disconnected') throw new ApiError('Backend database is unavailable. Apply migrations and retry.', 'DATABASE_ERROR');
+    return health;
   },
-
-  // Review & Criteria (Step 0)
-  async getReview(id: number): Promise<Review> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/reviews/${id}`);
-      if (!res.ok) throw new ApiError('Failed to fetch review', 'FETCH_FAILED');
-      return res.json();
-    }
-    // Update dynamic stats
-    const records = mockStore.records;
-    const included = records.filter(r => r.current_decision?.decision === 'include').length;
-    const excluded = records.filter(r => r.current_decision?.decision === 'exclude').length;
-    const maybe = records.filter(r => r.current_decision?.decision === 'maybe').length;
-    const unscreened = records.filter(r => !r.current_decision).length;
-    const conflicts = mockStore.conflicts.filter(c => c.status === 'open').length;
-    const uncertainPairs = mockStore.duplicatePairs.filter(p => p.tier === 'uncertain').length;
-
-    mockStore.review.stats = {
-      total_records: records.length,
-      unique_groups: new Set(records.map(r => r.group_id)).size,
-      included,
-      excluded,
-      maybe,
-      unscreened,
-      conflicts,
-      uncertain_duplicates: uncertainPairs
-    };
-    return mockStore.review;
+  async listReviews(): Promise<Review[]> { return (await request<Wire.Review[]>('/reviews')).map(toReview); },
+  async createReview(data: Pick<Review, 'title' | 'question'>): Promise<Review> {
+    return toReview(await request<Wire.Review>('/reviews', 'POST', { ...data, pico: {} }));
   },
-
-  async updateReview(id: number, patch: Partial<Review>): Promise<Review> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/reviews/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patch)
-      });
-      return res.json();
-    }
-    Object.assign(mockStore.review, patch);
-    mockStore.auditEvents.unshift({
-      id: Date.now(),
-      review_id: id,
-      actor: `reviewer:${getActiveReviewer()}`,
-      action: 'update_review',
-      entity_type: 'review',
-      entity_id: id,
-      before_json: null,
-      after_json: patch,
-      run_id: null,
-      created_at: new Date().toISOString()
-    });
-    return mockStore.review;
+  async getReview(reviewId: EntityId): Promise<Review> {
+    const [review, pairs] = await Promise.all([
+      request<Wire.Review>(`/reviews/${id(reviewId)}`),
+      request<Wire.DuplicatePair[]>(`/reviews/${id(reviewId)}/duplicate-pairs?tier=tier_3_review_needed&decided=false`),
+    ]);
+    const result = toReview(review);
+    result.stats!.uncertain_duplicates = pairs.length;
+    return result;
   },
-
-  async getCriteria(reviewId: number): Promise<CriteriaVersion> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/reviews/${reviewId}/criteria`);
-      return res.json();
-    }
-    return mockStore.criteriaVersion;
+  async updateReview(reviewId: EntityId, patch: Partial<Review>): Promise<Review> {
+    return toReview(await request<Wire.Review>(`/reviews/${id(reviewId)}`, 'PATCH', {
+      title: patch.title, question: patch.question, pico: {
+        population: patch.population,
+        intervention: patch.intervention, comparator: patch.comparator, outcome: patch.outcome
+      },
+    }));
   },
-
-  async updateCriteria(reviewId: number, criteria: Criterion[]): Promise<CriteriaVersion> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/reviews/${reviewId}/criteria`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ criteria })
-      });
-      return res.json();
-    }
-    const newVerNo = mockStore.criteriaVersion.version_no + 1;
-    const newCriteriaVersion: CriteriaVersion = {
-      id: Date.now(),
-      review_id: reviewId,
-      version_no: newVerNo,
-      created_at: new Date().toISOString(),
-      created_by: getActiveReviewer(),
-      criteria: criteria.map((c, i) => ({ ...c, id: c.id || Date.now() + i, criteria_version_id: Date.now() }))
-    };
-    mockStore.criteriaVersion = newCriteriaVersion;
-    mockStore.review.active_criteria_version_id = newCriteriaVersion.id;
-
-    mockStore.auditEvents.unshift({
-      id: Date.now(),
-      review_id: reviewId,
-      actor: `reviewer:${getActiveReviewer()}`,
-      action: 'update_criteria_version',
-      entity_type: 'criteria_version',
-      entity_id: newCriteriaVersion.id,
-      before_json: { version: newVerNo - 1 },
-      after_json: { version: newVerNo, criteria_count: criteria.length },
-      run_id: null,
-      created_at: new Date().toISOString()
-    });
-
-    return newCriteriaVersion;
+  async getCriteria(reviewId: EntityId): Promise<CriteriaVersion> {
+    const review = await request<Wire.Review>(`/reviews/${id(reviewId)}`);
+    return review.active_criteria_version ? toCriteria(review.active_criteria_version)
+      : { id: '', review_id: reviewId, version_no: 0, created_at: '', created_by: '', criteria: [] };
   },
-
-  // Queries & Search (Steps 1 & 2)
-  async getQueries(reviewId: number): Promise<QueryVersion[]> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/reviews/${reviewId}/queries`);
-      return res.json();
-    }
-    return mockStore.queryVersions;
+  async updateCriteria(reviewId: EntityId, criteria: Criterion[]): Promise<CriteriaVersion> {
+    return toCriteria(await request<Wire.CriteriaVersion>(`/reviews/${id(reviewId)}/criteria`, 'POST',
+      { criteria: criteria.filter(c => c.is_active).map(fromCriterion) }));
   },
-
-  async createQuery(reviewId: number, data: {
-    expression: string;
-    date_from?: string;
-    date_to?: string;
-    source: 'europe_pmc' | 'pubmed';
-    options_json?: Record<string, any>;
-    import_cap?: number;
-    label?: string;
-    parent_id?: number | null;
-  }): Promise<QueryVersion> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/reviews/${reviewId}/queries`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    }
-    const versionNo = mockStore.queryVersions.length + 1;
-    const newQuery: QueryVersion = {
-      id: Date.now(),
-      review_id: reviewId,
-      lineage_root_id: 1,
-      parent_id: data.parent_id || null,
-      version_no: versionNo,
-      label: data.label || `Query Version ${versionNo}`,
-      source: data.source,
-      expression: data.expression,
-      date_from: data.date_from || '2015-01-01',
-      date_to: data.date_to || '2025-12-31',
-      options_json: data.options_json || { synonym: false },
-      import_cap: data.import_cap || 500,
-      status: 'draft',
-      hit_count: null,
-      imported_count: null,
-      created_at: new Date().toISOString(),
-      executed_at: null,
-      request_fingerprint: `fp-v${versionNo}-${Date.now()}`
-    };
-    mockStore.queryVersions.push(newQuery);
-
-    mockStore.auditEvents.unshift({
-      id: Date.now(),
-      review_id: reviewId,
-      actor: `reviewer:${getActiveReviewer()}`,
-      action: 'create_query_version',
-      entity_type: 'query_version',
-      entity_id: newQuery.id,
-      before_json: null,
-      after_json: { version_no: versionNo, expression: data.expression, source: data.source },
-      run_id: null,
-      created_at: new Date().toISOString()
-    });
-
-    return newQuery;
+  async getQueries(reviewId: EntityId): Promise<QueryVersion[]> {
+    return (await request<Wire.QueryVersion[]>(`/reviews/${id(reviewId)}/queries`)).map(toQuery).sort((a, b) => a.version_no - b.version_no);
   },
-
-  async previewQuery(queryId: number): Promise<PreviewResponse> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/queries/${queryId}/preview`, { method: 'POST' });
-      return res.json();
-    }
-    const q = mockStore.queryVersions.find(item => item.id === queryId);
-    if (!q) throw new ApiError('Query version not found', 'NOT_FOUND');
-
-    q.status = 'previewed';
-    q.hit_count = q.source === 'europe_pmc' ? 2450 : 1980;
-
+  async createQuery(reviewId: EntityId, data: {
+    expression: string; source: string; date_from?: string; date_to?: string;
+    options_json?: { synonym?: boolean; title_abstract_only?: boolean; }; label?: string; parent_id?: EntityId | null
+   }): Promise<QueryVersion> {
+    return toQuery(await request<Wire.QueryVersion>(`/reviews/${id(reviewId)}/queries`, 'POST', {
+      label: data.label || data.expression.slice(0, 120), parent_id: data.parent_id || null,
+      spec: {
+        expression: data.expression, source: data.source, date_from: data.date_from || null,
+        date_to: data.date_to || null, expand_synonyms: data.options_json?.synonym || false,
+        title_abstract_only: data.options_json?.title_abstract_only || false
+      },
+    }));
+  },
+  async previewQuery(queryId: EntityId): Promise<PreviewResponse> {
+    const result = await request<Wire.QueryPreview>(`/queries/${id(queryId)}/preview`, 'POST');
     return {
-      query_version_id: queryId,
-      hit_count: q.hit_count,
-      sample_records: mockStore.records.slice(0, 10).map(r => ({
-        id: r.id,
-        title: r.title,
-        authors: r.authors_json,
-        year: r.year,
-        journal: r.journal,
-        source: r.source,
-        doi: r.doi_norm,
-        pmid: r.pmid,
-        abstract: r.abstract
+      query_version_id: result.query_id, hit_count: result.estimated_hits,
+      sample_records: result.sample_records, warnings: result.warnings
+    };
+  },
+  async importQuery(queryId: EntityId) { return request<{ run_id: string; status: string; }>(`/queries/${id(queryId)}/import`, 'POST'); },
+  async getRun(runId: EntityId): Promise<PipelineRun> {
+    const run = await request<Wire.PipelineRun>(`/runs/${id(runId)}`);
+    const stepNames: Record<string, PipelineRun['steps'][number]['step']> = {
+      fetch_records: 'fetch', deduplicate: 'dedup', screen_heuristics: 'screen', pico_extract: 'pico',
+    };
+    return {
+      ...run, trigger: run.run_type as PipelineRun['trigger'], active_version_ids_json: [],
+      finished_at: run.completed_at, error: run.error_message,
+      steps: [...run.steps].sort((a, b) => a.step_order - b.step_order).map(s => ({
+        ...s,
+        step: stepNames[s.name] || 'store', finished_at: s.completed_at,
+        output_summary_json: s.message ? { message: s.message } : undefined,
+        error: s.status === 'failed' ? s.message : null
       }))
     };
   },
-
-  async importQuery(queryId: number): Promise<{ run_id: number }> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/queries/${queryId}/import`, { method: 'POST' });
-      return res.json();
-    }
-    const q = mockStore.queryVersions.find(item => item.id === queryId);
-    if (!q) throw new ApiError('Query version not found', 'NOT_FOUND');
-
-    q.status = 'importing';
-    const runId = Date.now();
-    const newRun: PipelineRun = {
-      id: runId,
-      review_id: q.review_id,
-      query_version_id: queryId,
-      trigger: 'import',
-      active_version_ids_json: [queryId],
-      status: 'running',
-      started_at: new Date().toISOString(),
-      finished_at: null,
-      error: null,
-      steps: [
-        { id: 101, run_id: runId, step: 'fetch', status: 'running', started_at: new Date().toISOString(), finished_at: null },
-        { id: 102, run_id: runId, step: 'store', status: 'pending', started_at: null, finished_at: null },
-        { id: 103, run_id: runId, step: 'dedup', status: 'pending', started_at: null, finished_at: null },
-        { id: 104, run_id: runId, step: 'reconcile', status: 'pending', started_at: null, finished_at: null },
-        { id: 105, run_id: runId, step: 'screen', status: 'pending', started_at: null, finished_at: null },
-        { id: 106, run_id: runId, step: 'pico', status: 'pending', started_at: null, finished_at: null },
-        { id: 107, run_id: runId, step: 'diff', status: 'pending', started_at: null, finished_at: null }
-      ]
-    };
-    mockStore.runs.unshift(newRun);
-
-    // Simulate progress in steps for demo
-    setTimeout(() => {
-      newRun.steps[0].status = 'completed';
-      newRun.steps[0].finished_at = new Date().toISOString();
-      newRun.steps[0].output_summary_json = { fetched: 500, hits: q.hit_count };
-      newRun.steps[1].status = 'completed';
-      newRun.steps[1].finished_at = new Date().toISOString();
-      newRun.steps[2].status = 'completed';
-      newRun.steps[2].finished_at = new Date().toISOString();
-      newRun.steps[3].status = 'completed';
-      newRun.steps[3].finished_at = new Date().toISOString();
-      newRun.steps[4].status = 'completed';
-      newRun.steps[4].finished_at = new Date().toISOString();
-      newRun.steps[5].status = 'completed';
-      newRun.steps[5].finished_at = new Date().toISOString();
-      newRun.steps[6].status = 'completed';
-      newRun.steps[6].finished_at = new Date().toISOString();
-      newRun.status = 'completed';
-      newRun.finished_at = new Date().toISOString();
-      q.status = 'imported';
-      q.imported_count = 500;
-      q.executed_at = new Date().toISOString();
-    }, 2000);
-
-    return { run_id: runId };
-  },
-
-  async getRun(runId: number): Promise<PipelineRun> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/runs/${runId}`);
-      return res.json();
-    }
-    const run = mockStore.runs.find(r => r.id === runId);
-    if (!run) throw new ApiError('Run not found', 'NOT_FOUND');
-    return run;
-  },
-
-  async getReviewRuns(reviewId: number): Promise<PipelineRun[]> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/reviews/${reviewId}/runs`);
-      return res.json();
-    }
-    return mockStore.runs.filter(r => r.review_id === reviewId);
-  },
-
-  // Records & Queues
-  async getRecords(reviewId: number, params?: {
-    status?: string;
-    decision?: string;
-    q?: string;
-    version?: number;
-    show_hidden?: boolean;
-    page?: number;
-    page_size?: number;
-  }): Promise<RecordListResponse> {
-    const live = await checkBackend();
-    if (live) {
-      const url = new URL(`/api/reviews/${reviewId}/records`, window.location.origin);
-      if (params) {
-        Object.entries(params).forEach(([k, v]) => {
-          if (v !== undefined) url.searchParams.set(k, String(v));
-        });
-      }
-      const res = await fetch(url.toString());
-      return res.json();
-    }
-
-    let items = [...mockStore.records];
-    if (!params?.show_hidden) {
-      items = items.filter(r => r.is_representative);
-    }
-    if (params?.decision) {
-      if (params.decision === 'unscreened') {
-        items = items.filter(r => !r.current_decision);
-      } else {
-        items = items.filter(r => r.current_decision?.decision === params.decision);
-      }
-    }
-    if (params?.q) {
-      const query = params.q.toLowerCase();
-      items = items.filter(r =>
-        r.title.toLowerCase().includes(query) ||
-        r.authors_json.some(a => a.toLowerCase().includes(query)) ||
-        r.journal?.toLowerCase().includes(query) ||
-        r.abstract?.toLowerCase().includes(query)
-      );
-    }
-    if (params?.version) {
-      items = items.filter(r => r.query_versions?.includes(params.version!));
-    }
-
-    return {
-      items,
-      total: items.length,
-      page: params?.page || 1,
-      page_size: params?.page_size || 50,
-      total_pages: 1
-    };
-  },
-
-  async getRecordDetail(recordId: number): Promise<LiteratureRecord> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/records/${recordId}`);
-      return res.json();
-    }
-    const rec = mockStore.records.find(r => r.id === recordId);
-    if (!rec) throw new ApiError('Record not found', 'NOT_FOUND');
-    return rec;
-  },
-
-  // Duplicates Queue (Step 4)
-  async getDuplicatePairs(reviewId: number, params?: { tier?: string; decided?: boolean }): Promise<DuplicatePair[]> {
-    const live = await checkBackend();
-    if (live) {
-      const url = new URL(`/api/reviews/${reviewId}/duplicate-pairs`, window.location.origin);
-      if (params?.tier) url.searchParams.set('tier', params.tier);
-      if (params?.decided !== undefined) url.searchParams.set('decided', String(params.decided));
-      const res = await fetch(url.toString());
-      return res.json();
-    }
-    let pairs = [...mockStore.duplicatePairs];
-    if (params?.tier) {
-      pairs = pairs.filter(p => p.tier === params.tier);
-    }
-    // populate record_a and record_b
-    return pairs.map(p => ({
-      ...p,
-      record_a: mockStore.records.find(r => r.id === p.record_a_id) || p.record_a,
-      record_b: mockStore.records.find(r => r.id === p.record_b_id) || p.record_b
-    }));
-  },
-
-  async submitPairDecision(reviewId: number, data: {
-    record_a_id: number;
-    record_b_id: number;
-    decision: 'confirm' | 'reject';
-    note?: string;
-    reviewer: string;
-  }): Promise<PairDecision> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/reviews/${reviewId}/pair-decisions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    }
-
-    const decision: PairDecision = {
-      id: Date.now(),
-      review_id: reviewId,
-      record_a_id: data.record_a_id,
-      record_b_id: data.record_b_id,
-      decision: data.decision,
-      note: data.note || null,
-      reviewer: data.reviewer,
-      created_at: new Date().toISOString(),
-      superseded_by_id: null
-    };
-    mockStore.pairDecisions.push(decision);
-
-    // If confirmed: record_b becomes hidden, joins record_a group
-    if (data.decision === 'confirm') {
-      const recB = mockStore.records.find(r => r.id === data.record_b_id);
-      const recA = mockStore.records.find(r => r.id === data.record_a_id);
-      if (recB && recA) {
-        recB.is_representative = false;
-        recB.group_id = recA.group_id;
-        // propagate decision if recA decided
-        if (recA.current_decision) {
-          recB.current_decision = {
-            id: Date.now() + 1,
-            review_id: reviewId,
-            record_id: recB.id,
-            decision: recA.current_decision.decision,
-            reason_text: `Inherited from representative #${recA.id}`,
-            reviewer: data.reviewer,
-            origin: 'inherited',
-            criteria_version_id: mockStore.criteriaVersion.id,
-            created_at: new Date().toISOString()
-          };
-        }
-      }
-    }
-
-    mockStore.auditEvents.unshift({
-      id: Date.now(),
-      review_id: reviewId,
-      actor: `reviewer:${data.reviewer}`,
-      action: data.decision === 'confirm' ? 'confirm_duplicate_pair' : 'reject_duplicate_pair',
-      entity_type: 'pair_decision',
-      entity_id: decision.id,
-      before_json: null,
-      after_json: data,
-      run_id: null,
-      created_at: new Date().toISOString()
-    });
-
-    return decision;
-  },
-
-  // Screening Queue (Step 5)
-  async submitScreeningDecision(recordId: number, data: {
-    decision: 'include' | 'exclude' | 'maybe';
-    criterion_id?: number | null;
-    reason_text?: string;
-    note?: string;
-    reviewer: string;
-  }): Promise<ScreeningDecision> {
-    // ENFORCE CRITICAL REQUIREMENT: Exclude MUST have a reason
-    if (data.decision === 'exclude' && !data.criterion_id && !data.reason_text?.trim()) {
-      throw new ApiError(
-        'An exclusion reason or criterion is required to exclude a study.',
-        'EXCLUSION_REASON_REQUIRED',
-        { record_id: recordId }
-      );
-    }
-
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/records/${recordId}/screening`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new ApiError(err?.error?.message || 'Screening error', err?.error?.code || 'SCREENING_FAILED');
-      }
-      return res.json();
-    }
-
-    const rec = mockStore.records.find(r => r.id === recordId);
-    if (!rec) throw new ApiError('Record not found', 'NOT_FOUND');
-
-    const decision: ScreeningDecision = {
-      id: Date.now(),
-      review_id: rec.review_id,
-      record_id: recordId,
-      decision: data.decision,
-      criterion_id: data.criterion_id || null,
-      reason_text: data.reason_text || (data.criterion_id ? mockStore.criteriaVersion.criteria.find(c => c.id === data.criterion_id)?.label : null),
-      note: data.note || null,
-      reviewer: data.reviewer,
-      origin: 'direct',
-      criteria_version_id: mockStore.criteriaVersion.id,
-      created_at: new Date().toISOString()
-    };
-
-    // Apply to group
-    const groupMembers = mockStore.records.filter(r => r.group_id === rec.group_id);
-    groupMembers.forEach(member => {
-      member.current_decision = {
-        ...decision,
-        id: member.id === recordId ? decision.id : Date.now() + member.id,
-        record_id: member.id,
-        origin: member.id === recordId ? 'direct' : 'group_applied'
+  getRecords: recordPages,
+  async getRecord(recordId: EntityId): Promise<LiteratureRecord> { return toRecord(await request<Wire.RecordDetail>(`/records/${id(recordId)}`)); },
+  async getDuplicatePairs(reviewId: EntityId, params?: { tier?: 'auto' | 'uncertain'; }): Promise<DuplicatePair[]> {
+    const pairs = await request<Wire.DuplicatePair[]>(`/reviews/${id(reviewId)}/duplicate-pairs`);
+    return pairs.filter(p => !params?.tier || (params.tier === 'uncertain' ? p.tier === 'tier_3_review_needed' : p.tier !== 'tier_3_review_needed')).map(p => {
+      const verdict = [...p.decisions].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+      return {
+        id: p.id, review_id: p.review_id, record_a_id: p.record_a_id, record_b_id: p.record_b_id,
+        method: 'unspecified', score: p.similarity_score, tier: p.tier === 'tier_3_review_needed' ? 'uncertain' : 'auto',
+        matched_fields_json: p.match_reasons, conflicting_fields_json: [], algo_version: '', created_run_id: '',
+        record_a: p.record_a ? toRecord({ ...p.record_a, is_representative: true, is_hidden: false }) : undefined,
+        record_b: p.record_b ? toRecord({ ...p.record_b, is_representative: true, is_hidden: false }) : undefined,
+        decision: verdict ? {
+          ...verdict, review_id: reviewId, record_a_id: p.record_a_id,
+          record_b_id: p.record_b_id, reviewer: verdict.reviewer_name
+        } : undefined
       };
     });
-
-    mockStore.auditEvents.unshift({
-      id: Date.now(),
-      review_id: rec.review_id,
-      actor: `reviewer:${data.reviewer}`,
-      action: 'screening_decision',
-      entity_type: 'screening_decision',
-      entity_id: decision.id,
-      before_json: rec.current_decision ? { decision: rec.current_decision.decision } : null,
-      after_json: { decision: data.decision, reason: decision.reason_text, group_id: rec.group_id },
-      run_id: null,
-      created_at: new Date().toISOString()
+  },
+  async submitPairDecision(reviewId: EntityId, data: { record_a_id: EntityId; record_b_id: EntityId; decision: 'confirm' | 'reject'; note?: string; reviewer: string; }) {
+    const { reviewer, ...rest } = data;
+    return request<Wire.PairDecisionResult>(`/reviews/${id(reviewId)}/pair-decisions`, 'POST', { ...rest, reviewer_name: reviewer });
+  },
+  async submitScreeningDecision(recordId: EntityId, data: { decision: DecisionType; criterion_id?: EntityId | null; reason_text?: string; note?: string; reviewer: string; }) {
+    const { reviewer, ...rest } = data;
+    return request<Wire.ScreeningDecision>(`/records/${id(recordId)}/screening`, 'POST', { ...rest, reviewer_name: reviewer });
+  },
+  async getPicoAnnotations(recordId: EntityId): Promise<PicoAnnotation[]> {
+    return (await request<Wire.RecordDetail>(`/records/${id(recordId)}`)).pico_spans.map(p => toPico(p, recordId));
+  },
+  async updatePico(recordId: EntityId, operation: { op: 'confirm' | 'correct' | 'reject'; annotation: Partial<PicoAnnotation>; reviewer: string; }) {
+    return request<Wire.PicoPatchResult>(`/records/${id(recordId)}/pico`, 'PATCH', {
+      reviewer: operation.reviewer, ops: [{
+        op: operation.op, span_id: operation.annotation.id, text: operation.op === 'correct' ? operation.annotation.text : undefined,
+      }]
     });
-
-    return decision;
   },
-
-  // PICO Workspace (Step 6)
-  async getPicoAnnotations(recordId: number): Promise<PicoAnnotation[]> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/records/${recordId}/pico`);
-      return res.json();
-    }
-    return mockStore.picoAnnotations.filter(p => p.record_id === recordId);
-  },
-
-  async updatePico(recordId: number, op: {
-    op: 'confirm' | 'correct' | 'reject' | 'add' | 'mark_unknown';
-    annotation: Partial<PicoAnnotation>;
-    reviewer: string;
-  }): Promise<PicoAnnotation> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/records/${recordId}/pico`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(op)
-      });
-      return res.json();
-    }
-
-    const ann: PicoAnnotation = {
-      id: Date.now(),
-      record_id: recordId,
-      label: op.annotation.label || 'P',
-      text: op.annotation.text || '',
-      start_char: op.annotation.start_char ?? 0,
-      end_char: op.annotation.end_char ?? 0,
-      origin: 'human',
-      status: op.op === 'confirm' ? 'confirmed' : op.op === 'correct' ? 'corrected' : op.op === 'add' ? 'added' : 'rejected',
-      supersedes_id: op.annotation.id || null,
-      content_hash: 'manual-hash',
-      algo_version: 'v1.0',
-      reviewer: op.reviewer,
-      created_at: new Date().toISOString()
+  async getDiff(to: EntityId, from: EntityId): Promise<DiffSummary> {
+    const diff = await request<Wire.QueryDiff>(`/queries/${id(to)}/diff?against=${id(from)}`);
+    return {
+      from_version_id: from, to_version_id: to,
+      records_added: diff.new_records_count, records_removed: diff.dropped_records_count,
+      already_present: diff.retained_records_count, decisions_preserved: diff.already_screened_retained_count,
+      conflicts_opened: diff.potential_conflicts_count, metrics_available: false
     };
-
-    mockStore.picoAnnotations.push(ann);
-
-    mockStore.auditEvents.unshift({
-      id: Date.now(),
-      review_id: mockStore.review.id,
-      actor: `reviewer:${op.reviewer}`,
-      action: `pico_${op.op}`,
-      entity_type: 'pico_annotation',
-      entity_id: ann.id,
-      before_json: op.annotation.id ? { id: op.annotation.id } : null,
-      after_json: { label: ann.label, text: ann.text, status: ann.status },
-      run_id: null,
-      created_at: new Date().toISOString()
+  },
+  async getConflicts(reviewId: EntityId): Promise<Conflict[]> {
+    const conflicts = await request<Wire.Conflict[]>(`/reviews/${id(reviewId)}/conflicts?status=all`);
+    if (!conflicts.length) return [];
+    const records = await recordPages(reviewId, { show_hidden: true, status: 'all' });
+    return conflicts.map(c => {
+      const members = records.items.filter(r => r.group_id === c.group_id || r.id === c.group_id);
+      return {
+        id: c.id, review_id: c.review_id, type: c.reason === 'include_vs_exclude' ? 'group_decision_conflict' : 'pair_override_bypassed',
+        fingerprint: c.open_fingerprint || c.id, record_ids_json: members.map(r => r.id),
+        details_json: {
+          explanation: c.resolution_note || c.reason, conflicting_decisions: members.filter(r => r.current_decision).map(r => ({
+            record_id: r.id, decision: r.current_decision!.decision, reason: r.current_decision!.reason_text || '',
+            reviewer: r.current_decision!.reviewer, time: r.current_decision!.created_at
+          }))
+        },
+        status: c.status, created_run_id: '', resolved_at: c.resolved_at, reviewer: c.resolved_by, records: members
+      };
     });
-
-    return ann;
   },
-
-  // Level 2 Loop: History, Diff, Conflicts & Revert
-  async getDiff(queryId: number, againstVersionId?: number): Promise<DiffSummary> {
-    const live = await checkBackend();
-    if (live) {
-      const url = new URL(`/api/queries/${queryId}/diff`, window.location.origin);
-      if (againstVersionId) url.searchParams.set('against', String(againstVersionId));
-      const res = await fetch(url.toString());
-      return res.json();
-    }
-    return mockStore.diffSummary;
-  },
-
-  async getConflicts(reviewId: number): Promise<Conflict[]> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/reviews/${reviewId}/conflicts`);
-      return res.json();
-    }
-    return mockStore.conflicts;
-  },
-
-  async resolveConflict(conflictId: number, data: {
-    resolution: 'unify' | 'split' | 'maybe';
-    decision?: 'include' | 'exclude' | 'maybe';
-    reason?: string;
-    reviewer: string;
-  }): Promise<Conflict> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/conflicts/${conflictId}/resolve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    }
-
-    const conf = mockStore.conflicts.find(c => c.id === conflictId);
-    if (!conf) throw new ApiError('Conflict not found', 'NOT_FOUND');
-
-    conf.status = 'resolved';
-    conf.resolved_at = new Date().toISOString();
-    conf.resolution_json = data;
-    conf.reviewer = data.reviewer;
-
-    if (data.resolution === 'unify' && data.decision) {
-      conf.record_ids_json.forEach(rid => {
-        const r = mockStore.records.find(item => item.id === rid);
-        if (r) {
-          r.current_decision = {
-            id: Date.now() + rid,
-            review_id: conf.review_id,
-            record_id: rid,
-            decision: data.decision!,
-            reason_text: data.reason || 'Resolved via group conflict resolution',
-            reviewer: data.reviewer,
-            origin: 'conflict_resolution',
-            criteria_version_id: mockStore.criteriaVersion.id,
-            created_at: new Date().toISOString()
-          };
-        }
-      });
-    }
-
-    mockStore.auditEvents.unshift({
-      id: Date.now(),
-      review_id: conf.review_id,
-      actor: `reviewer:${data.reviewer}`,
-      action: 'resolve_conflict',
-      entity_type: 'conflict',
-      entity_id: conflictId,
-      before_json: { status: 'open' },
-      after_json: data,
-      run_id: null,
-      created_at: new Date().toISOString()
+  async resolveConflict(conflictId: EntityId, data: { resolution: 'unify' | 'maybe'; decision?: DecisionType; reason?: string; reviewer: string; }) {
+    return request<Wire.ConflictResolveResult>(`/conflicts/${id(conflictId)}/resolve`, 'POST', {
+      decision: data.decision || 'maybe', reviewer: data.reviewer, note: data.reason, reason_text: data.reason,
     });
-
-    return conf;
   },
-
-  async revertQuery(queryId: number): Promise<{ message: string; version_no: number }> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/queries/${queryId}/revert`, { method: 'POST' });
-      return res.json();
+  async revertQuery(queryId: EntityId) { return request<Wire.QueryRevertResult>(`/queries/${id(queryId)}/revert`, 'POST'); },
+  async getAuditEvents(reviewId: EntityId): Promise<AuditEvent[]> {
+    const items: Wire.AuditEvent[] = [];
+    for (let page = 1;;page++) {
+      const response = await request<{ items: Wire.AuditEvent[]; total: number; }>(`/reviews/${id(reviewId)}/audit?page=${page}&page_size=500`);
+      items.push(...response.items);
+      if (items.length >= response.total || !response.items.length) break;
     }
-    const targetQ = mockStore.queryVersions.find(q => q.id === queryId);
-    if (!targetQ) throw new ApiError('Target query version not found', 'NOT_FOUND');
-
-    // Invert scope to target version active set
-    mockStore.records.forEach(r => {
-      r.is_representative = r.query_versions?.includes(targetQ.version_no) ?? true;
-    });
-
-    mockStore.auditEvents.unshift({
-      id: Date.now(),
-      review_id: mockStore.review.id,
-      actor: `reviewer:${getActiveReviewer()}`,
-      action: 'exact_revert',
-      entity_type: 'query_version',
-      entity_id: queryId,
-      before_json: { active_versions: [1, 2] },
-      after_json: { active_versions: [targetQ.version_no], restored_group_snapshot: true },
-      run_id: null,
-      created_at: new Date().toISOString()
-    });
-
-    return { message: 'Reverted successfully without API refetch', version_no: targetQ.version_no };
+    return items.map(e => ({
+      id: e.id, review_id: e.review_id, actor: e.actor, action: e.event_type,
+      entity_type: e.target_type, entity_id: e.target_id, before_json: e.before_state, after_json: e.after_state,
+      created_at: e.timestamp
+    }));
   },
-
-  // Audit Log (Append-only)
-  async getAuditEvents(reviewId: number): Promise<AuditEvent[]> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/reviews/${reviewId}/audit`);
-      return res.json();
-    }
-    return mockStore.auditEvents;
-  },
-
-  // Export CSV
-  async exportCsv(reviewId: number): Promise<string> {
-    const live = await checkBackend();
-    if (live) {
-      const res = await fetch(`/api/reviews/${reviewId}/export.csv`);
-      return res.text();
-    }
-
-    const includedReps = mockStore.records.filter(r => r.is_representative && r.current_decision?.decision === 'include');
-    const header = ['ID', 'Title', 'First Author', 'Year', 'Journal', 'DOI', 'PMID', 'Decision', 'Reviewer', 'Reason', 'Population (P)', 'Intervention (I)', 'Comparator (C)', 'Outcome (O)'].join(',');
-    const rows = includedReps.map(r => {
-      const picos = mockStore.picoAnnotations.filter(p => p.record_id === r.id);
-      const p = picos.find(x => x.label === 'P')?.text || '';
-      const i = picos.find(x => x.label === 'I')?.text || '';
-      const c = picos.find(x => x.label === 'C')?.text || '';
-      const o = picos.find(x => x.label === 'O')?.text || '';
-      return [
-        r.id,
-        `"${r.title.replace(/"/g, '""')}"`,
-        `"${r.first_author_norm || ''}"`,
-        r.year || '',
-        `"${(r.journal || '').replace(/"/g, '""')}"`,
-        r.doi_norm || '',
-        r.pmid || '',
-        r.current_decision?.decision || '',
-        `"${r.current_decision?.reviewer || ''}"`,
-        `"${(r.current_decision?.reason_text || '').replace(/"/g, '""')}"`,
-        `"${p.replace(/"/g, '""')}"`,
-        `"${i.replace(/"/g, '""')}"`,
-        `"${c.replace(/"/g, '""')}"`,
-        `"${o.replace(/"/g, '""')}"`
-      ].join(',');
-    });
-    return [header, ...rows].join('\n');
-  }
+  async exportCsv(reviewId: EntityId) { return request<string>(`/reviews/${id(reviewId)}/export.csv`); },
 };
