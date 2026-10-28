@@ -1,213 +1,177 @@
 import {
   ArrowRight,
-  CheckCircle2,
+  FileSpreadsheet,
+  FileText,
   GitCompare,
   GitMerge,
+  Search,
   ShieldCheck,
-  Sparkles
+  Tag
 } from 'lucide-react';
+import React from 'react';
+import { AmbientBackground } from '../../components/ui/AmbientBackground';
 
 interface LandingPageProps {
   onEnterWorkspace: () => void;
+  isDark?: boolean;
 }
 
-export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
+export function LandingPage({ onEnterWorkspace, isDark = true }: LandingPageProps) {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-brand-500 selection:text-white relative overflow-x-hidden">
-      {/* Background glowing gradients */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[450px] bg-gradient-to-b from-brand-600/20 via-cyan-500/10 to-transparent blur-3xl pointer-events-none -z-10" />
-      <div className="absolute top-1/3 -left-48 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none -z-10" />
-      <div className="absolute top-2/3 -right-48 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none -z-10" />
+    <div className="min-h-screen bg-slate-50 dark:bg-[#070b13] text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-teal-500 selection:text-white relative transition-colors duration-300">
+      <AmbientBackground isDark={isDark} />
 
-      {/* Top Navbar */}
-      <header className="h-20 px-6 sm:px-12 border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-md flex items-center justify-between sticky top-0 z-40">
+      {/* Editorial Top Navbar */}
+      <header className="h-16 px-6 sm:px-12 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl flex items-center justify-between sticky top-0 z-40 transition-colors">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-brand-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-brand-950/80 font-black text-white text-base tracking-wider">
+          <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center font-bold text-white text-xs tracking-wider shadow-sm">
             EF
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-black text-slate-100 tracking-tight">EvidenceFlow</span>
-              <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-300 border border-brand-500/30 font-bold">
-                Mini-Rayyan 2026
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">EvidenceFlow</span>
+              <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-500/30 font-semibold">
+                Mini-Rayyan 72h
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 font-medium">Auditable Systematic Review Workspace</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">Auditable Systematic Review Workspace</p>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
           <button
             onClick={onEnterWorkspace}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-cyan-600 hover:from-brand-500 hover:to-cyan-500 text-white font-bold text-xs shadow-xl shadow-brand-950/60 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-semibold text-xs tracking-wide transition shadow-sm hover:shadow-md cursor-pointer"
           >
             <span>Enter Workspace</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 max-w-6xl mx-auto px-6 py-16 sm:py-24 space-y-20">
-        <div className="text-center space-y-6 max-w-3xl mx-auto">
-          {/* Floating Pill Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 shadow-inner text-xs font-medium text-slate-300">
-            <Sparkles className="w-3.5 h-3.5 text-brand-400" />
-            <span>Mini-Rayyan 72-Hour Hackathon Challenge</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+      <main className="flex-1 max-w-6xl mx-auto px-6 py-12 sm:py-20 space-y-16">
+        <div className="text-center space-y-5 max-w-3xl mx-auto">
+          {/* Subtle Tag */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 text-xs font-mono text-slate-600 dark:text-slate-400 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+            <span>Mini-Rayyan AI/ML Hackathon Platform</span>
           </div>
 
           {/* Headline */}
-          <h1 className="text-4xl sm:text-6xl font-extrabold text-slate-100 tracking-tight leading-[1.15]">
-            Auditable Systematic Reviews.{' '}
-            <span className="bg-gradient-to-r from-brand-400 via-cyan-300 to-emerald-400 bg-clip-text text-transparent">
-              Without the Rework.
-            </span>
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 leading-[1.15]">
+            Auditable Systematic Literature Reviews{' '}
+            <span className="text-teal-600 dark:text-teal-400">With Zero Decision Loss</span>
           </h1>
 
-          {/* Subtitle */}
-          <p className="text-base sm:text-lg text-slate-300/90 leading-relaxed font-normal">
-            Change your literature search as often as you like. EvidenceFlow automatically traces query diffs, merges duplicate groups, and preserves <strong>reviewer decision history</strong>.
+          {/* Editorial Hook */}
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
+            A biomedical systematic-review tool with automated PubMed & Europe PMC ingestion, algorithmic deduplication, rule-based screening, and PICO tagging.
           </p>
 
-          {/* Main Hero CTA Button */}
-          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+          {/* Core Pitch Quote */}
+          <div className="p-4 rounded-2xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 max-w-2xl mx-auto text-left shadow-sm">
+            <p className="text-xs font-mono text-teal-700 dark:text-teal-400 font-semibold mb-1">THE LEVEL 2 GUARANTEE</p>
+            <p className="text-sm italic text-slate-800 dark:text-slate-200">
+              "Change your search as often as you like. EvidenceFlow shows exactly what changed and never loses a decision you made."
+            </p>
+          </div>
+
+          {/* CTAs */}
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={onEnterWorkspace}
-              className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-brand-600 via-brand-500 to-cyan-500 hover:from-brand-500 hover:to-cyan-400 text-white font-extrabold text-sm shadow-2xl shadow-brand-950/80 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+              className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-sm tracking-wide transition shadow-sm hover:shadow-md cursor-pointer"
             >
-              <span>Launch Review Workspace</span>
+              <span>Launch EvidenceFlow Workspace</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
-
-          {/* Quick Pillars */}
-          <div className="pt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-slate-400 font-mono">
-            <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800/80 flex items-center justify-center gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span>Zero-Loss Query Loop</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800/80 flex items-center justify-center gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-brand-400 shrink-0" />
-              <span>Multi-Source Fetch</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800/80 flex items-center justify-center gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-              <span>Automated PICO</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800/80 flex items-center justify-center gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-              <span>Audit Provenance</span>
-            </div>
-          </div>
         </div>
 
-        {/* Feature Cards Grid (3 Columns) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
-          {/* Card 1 */}
-          <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800 hover:border-slate-700 transition space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-400 flex items-center justify-center">
-              <GitCompare className="w-5 h-5" />
+        {/* 6 Key Architectural Capabilities */}
+        <div className="grid md:grid-cols-3 gap-5 pt-4">
+          <div className="p-5 rounded-2xl bg-white/70 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 space-y-2.5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+            <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20 text-teal-700 dark:text-teal-400 flex items-center justify-center">
+              <FileText className="w-4 h-4" />
             </div>
-            <h3 className="text-base font-bold text-slate-100">Level 2 Loop & Diff View</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Broaden or narrow your Boolean query. EvidenceFlow computes precise additions, preserves earlier reviewer decisions, and restores exact v1 snapshots without re-fetching APIs.
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">1. PICO Question & Criteria</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Define protocol questions and criteria with mandatory rationales. Any criteria update generates an explicit version without erasing existing evaluations.
             </p>
           </div>
 
-          {/* Card 2 */}
-          <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800 hover:border-slate-700 transition space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
-              <GitMerge className="w-5 h-5" />
+          <div className="p-5 rounded-2xl bg-white/70 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 space-y-2.5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+            <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20 text-teal-700 dark:text-teal-400 flex items-center justify-center">
+              <Search className="w-4 h-4" />
             </div>
-            <h3 className="text-base font-bold text-slate-100">Cross-Source Deduplication</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Deterministic deduplication across PubMed and Europe PMC. Armed with our Conference vs. Journal guard to prevent treating conference abstracts as duplicates of published trials.
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">2. Boolean Search & Ingestion</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Preview hit counts across PubMed and Europe PMC. Live expressions render in monospace with NCBI copyright and rate-limit compliance.
             </p>
           </div>
 
-          {/* Card 3 */}
-          <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800 hover:border-slate-700 transition space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
-              <ShieldCheck className="w-5 h-5" />
+          <div className="p-5 rounded-2xl bg-white/70 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 space-y-2.5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+            <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20 text-teal-700 dark:text-teal-400 flex items-center justify-center">
+              <GitMerge className="w-4 h-4" />
             </div>
-            <h3 className="text-base font-bold text-slate-100">Human-In-The-Loop Governance</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Exclusion requires an explicit protocol reason. When queries expand and groups merge with conflicting decisions, conflicts are surfaced for human resolution rather than silently chosen.
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">3. Deduplication & Graph Clustering</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Exact DOI/PMID matches paired with title Levenshtein distance. Human reviewers can confirm or reject candidate pairs with automatic canonical election.
+            </p>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-white/70 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 space-y-2.5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+            <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20 text-teal-700 dark:text-teal-400 flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">4. Rayyan-Style Screening</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Keyboard-first (I, E, M, N, P). Outlined suggested badges with evidence popovers; solid badges for human decisions. Exclude is strictly blocked without a reason.
+            </p>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-white/70 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 space-y-2.5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+            <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20 text-teal-700 dark:text-teal-400 flex items-center justify-center">
+              <Tag className="w-4 h-4" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">5. PICO Entity Extraction</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Sentence-level span highlighting for Population, Intervention, Comparator, and Outcome. Full drag-select add, edit modal, and explicit unknown flagging.
+            </p>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-white/70 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 space-y-2.5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+            <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20 text-teal-700 dark:text-teal-400 flex items-center justify-center">
+              <GitCompare className="w-4 h-4" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">6. Query Loop & Exact Diff</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Compare any two query versions: records added, retained, or dropped. Execute exact reverts with zero API calls while keeping human screening work safe.
             </p>
           </div>
         </div>
 
-        {/* 7-Step Pipeline Stepper Preview */}
-        <div className="p-8 rounded-2xl bg-slate-900/50 border border-slate-800 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4">
-            <div>
-              <h2 className="text-lg font-bold text-slate-100">The EvidenceFlow Pipeline Architecture</h2>
-              <p className="text-xs text-slate-400">Steps 0 through 7 designed for the Mini-Rayyan evaluation rubric</p>
-            </div>
-            <span className="text-[11px] font-mono text-brand-400 font-bold px-2.5 py-1 rounded-lg bg-brand-950/80 border border-brand-800/40">
-              Connected Workflow
-            </span>
+        {/* Bottom Banner */}
+        <div className="p-6 rounded-2xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+          <div className="space-y-1 text-center sm:text-left">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Ready to examine the review?</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Explore the Metformin vs Placebo in Type 2 Diabetes benchmark or initialize a new review.
+            </p>
           </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-xs">
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
-              <span className="text-[10px] font-mono text-brand-400 font-bold block">STEP 0</span>
-              <div className="font-semibold text-slate-200">Protocol & Criteria</div>
-              <p className="text-[11px] text-slate-500">PICO definition</p>
-            </div>
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
-              <span className="text-[10px] font-mono text-cyan-400 font-bold block">STEP 1-2</span>
-              <div className="font-semibold text-slate-200">Search & Fetch</div>
-              <p className="text-[11px] text-slate-500">PubMed & Europe PMC</p>
-            </div>
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
-              <span className="text-[10px] font-mono text-amber-400 font-bold block">STEP 4</span>
-              <div className="font-semibold text-slate-200">Deduplication</div>
-              <p className="text-[11px] text-slate-500">Hide, never delete</p>
-            </div>
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
-              <span className="text-[10px] font-mono text-rose-400 font-bold block">STEP 5</span>
-              <div className="font-semibold text-slate-200">Screening</div>
-              <p className="text-[11px] text-slate-500">I / E / M + reason</p>
-            </div>
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
-              <span className="text-[10px] font-mono text-purple-400 font-bold block">STEP 6</span>
-              <div className="font-semibold text-slate-200">PICO Spans</div>
-              <p className="text-[11px] text-slate-500">Entity tagging</p>
-            </div>
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-brand-500/40 space-y-1 shadow-md shadow-brand-950/40">
-              <span className="text-[10px] font-mono text-brand-300 font-bold block">LOOP</span>
-              <div className="font-semibold text-brand-200">Query Evolution</div>
-              <p className="text-[11px] text-brand-400/80">Diff & exact revert</p>
-            </div>
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
-              <span className="text-[10px] font-mono text-emerald-400 font-bold block">STEP 7</span>
-              <div className="font-semibold text-slate-200">CSV Export</div>
-              <p className="text-[11px] text-slate-500">Synthesis output</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Call to Action */}
-        <div className="text-center p-8 rounded-2xl bg-gradient-to-r from-brand-950/60 via-slate-900 to-slate-950 border border-brand-800/40 space-y-4">
-          <h2 className="text-xl font-bold text-slate-100">Ready to test the Mini-Rayyan workflow?</h2>
-          <p className="text-xs text-slate-400 max-w-lg mx-auto">
-            Create a review or open an existing protocol, search the literature, review duplicate pairs, screen abstracts, and compare query versions.
-          </p>
           <button
             onClick={onEnterWorkspace}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-lg shadow-brand-950/60 transition cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-semibold text-xs transition shadow-sm hover:shadow-md shrink-0 cursor-pointer"
           >
-            <span>Launch EvidenceFlow Workspace</span>
-            <ArrowRight className="w-4 h-4" />
+            Launch Review Workspace →
           </button>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="py-6 border-t border-slate-800/80 bg-slate-950 text-center text-xs text-slate-500 font-mono">
-        EvidenceFlow ? Mini-Rayyan 72h Hackathon ? Member D Frontend & Demo Lead
+      {/* Minimal Footer */}
+      <footer className="border-t border-slate-200/80 dark:border-slate-800/80 py-6 px-6 text-center text-xs text-slate-500 dark:text-slate-400">
+        EvidenceFlow · Mini-Rayyan 72h Hackathon · Member D Frontend & Demo Lead
       </footer>
     </div>
   );

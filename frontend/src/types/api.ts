@@ -194,10 +194,12 @@ export interface ScreeningSuggestion {
   content_hash: string;
   algo_version: string;
   suggestion: DecisionType;
+  decision?: DecisionType;
   criterion_id?: EntityId | null;
   criterion?: Criterion;
   evidence_json: {
     rule_hits?: string[];
+    rule_hit?: string;
     metadata_fields_used?: string[];
     strength?: 'strong' | 'weak' | 'none';
     explanation?: string;
@@ -220,6 +222,7 @@ export interface ScreeningDecision {
   criteria_version_id: EntityId;
   created_at: string;
   superseded_by_id?: EntityId | null;
+  stale?: boolean;
 }
 
 export interface PicoAnnotation {

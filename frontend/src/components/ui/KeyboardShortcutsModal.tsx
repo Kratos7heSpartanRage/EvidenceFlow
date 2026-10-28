@@ -29,24 +29,24 @@ export function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShortcutsMod
           return (
             <div
               key={s.key}
-              className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950/60 border border-slate-800"
+              className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800"
             >
               <div className="flex items-center gap-3">
                 <Icon className={`w-4 h-4 ${s.color}`} />
                 <div>
-                  <div className="text-xs font-semibold text-slate-200">{s.label}</div>
-                  <div className="text-[11px] text-slate-400">{s.desc}</div>
+                  <div className="text-xs font-semibold text-slate-900 dark:text-slate-200">{s.label}</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">{s.desc}</div>
                 </div>
               </div>
-              <kbd className="px-2.5 py-1 text-xs font-mono font-bold text-slate-100 bg-slate-800 border border-slate-700 rounded shadow-inner">
+              <kbd className="px-2.5 py-1 text-xs font-mono font-bold text-slate-800 dark:text-slate-100 bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded shadow-sm">
                 {s.key}
               </kbd>
             </div>
           );
         })}
       </div>
-      <div className="text-center pt-2 text-xs text-slate-400">
-        Press <kbd className="px-1.5 py-0.5 rounded bg-slate-800 font-mono text-slate-300">Esc</kbd> to close.
+      <div className="text-center pt-2 text-xs text-slate-500 dark:text-slate-400">
+        Press <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-slate-700 dark:text-slate-300">Esc</kbd> to close.
       </div>
     </Modal>
   );

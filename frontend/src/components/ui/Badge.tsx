@@ -1,4 +1,4 @@
-import { AlertTriangle, Bot, CheckCircle, HelpCircle, Info, User, XCircle } from 'lucide-react';
+import { AlertTriangle, Bot, CheckCircle, Clock, HelpCircle, Info, User, XCircle } from 'lucide-react';
 import { PicoLabel, ScreeningDecision, ScreeningSuggestion } from '../../types/api';
 
 export function MachineSuggestionBadge({ suggestion }: { suggestion?: ScreeningSuggestion | null; }) {
@@ -149,6 +149,18 @@ export function PicoBadge({ label }: { label: PicoLabel; }) {
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded font-mono text-xs font-bold border ${s.bg} ${s.text} ${s.border}`}>
       <span>{label}</span>
       <span className="text-[10px] font-sans font-normal opacity-80">({s.name})</span>
+    </span>
+  );
+}
+
+export function StaleBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium border border-dashed border-slate-500 text-slate-400 bg-slate-800/40"
+      title="This decision was made on an earlier version of criteria or abstract content and may be stale"
+    >
+      <Clock className="w-3 h-3 text-slate-400" />
+      <span>STALE</span>
     </span>
   );
 }

@@ -4,22 +4,29 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  detpMode: "class",
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
         brand: {
-          50: "#f0f7ff",
-          100: "#e0effe",
-          200: "#bae0fd",
-          300: "#7cc5fb",
-          400: "#38a6f6",
-          500: "#0e87ea",
-          600: "#026bc8",
-          700: "#0355a2",
-          800: "#074885",
-          900: "#0c3d6e",
-          950: "#082749",
+          50: "#f0fdfa",
+          100: "#ccfbf1",
+          200: "#99f6e4",
+          300: "#5eead4",
+          400: "#2dd4bf",
+          500: "#14b8a6",
+          600: "#0d9488",
+          700: "#0f766e",
+          800: "#115e59",
+          900: "#134e4a",
+          950: "#042f2e",
+        },
+        semantic: {
+          include: "#10b981",
+          exclude: "#f43f5e",
+          maybe: "#f59e0b",
+          conflict: "#8b5cf6",
+          stale: "#94a3b8",
         },
         pico: {
           p: "#3b82f6",
@@ -30,7 +37,7 @@ export default {
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
+        mono: ["JetBrains Mono", "ui-monospace", "monospace"],
       }
     },
   },
