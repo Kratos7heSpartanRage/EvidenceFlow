@@ -29,7 +29,9 @@ async def lifespan(app: FastAPI):
     # Startup self-healing: Clean up any interrupted pipeline runs
     db = SessionLocal()
     try:
-        interrupted = db.query(PipelineRun).filter(PipelineRun.status == "running").all()
+        interrupted = (
+            db.query(PipelineRun).filter(PipelineRun.status.in_(("queued", "running"))).all()
+        )
         for run in interrupted:
             run.status = "failed"
             run.error_message = "Process interrupted during server restart or shutdown."
