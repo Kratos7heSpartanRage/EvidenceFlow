@@ -9,7 +9,7 @@ import {
   ToggleRight,
   X
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useAction, useData, useWorkspace } from '../../lib/workspace';
 import type { EntityId } from '../../types/api';
@@ -28,13 +28,26 @@ export function ReviewSetup({ onProceedToSearch }: ReviewSetupProps) {
   // Edit protocol modal/form
   const [isEditingPico, setIsEditingPico] = useState(false);
   const [picoForm, setPicoForm] = useState({
-    title: review.title,
-    question: review.question,
-    population: review.population,
-    intervention: review.intervention,
-    comparator: review.comparator,
-    outcome: review.outcome
+    title: review?.title || '',
+    question: review?.question || '',
+    population: review?.population || '',
+    intervention: review?.intervention || '',
+    comparator: review?.comparator || '',
+    outcome: review?.outcome || ''
   });
+
+  useEffect(() => {
+    if (review) {
+      setPicoForm({
+        title: review.title || '',
+        question: review.question || '',
+        population: review.population || '',
+        intervention: review.intervention || '',
+        comparator: review.comparator || '',
+        outcome: review.outcome || ''
+      });
+    }
+  }, [review]);
 
   // Add criterion modal
   const [showAddModal, setShowAddModal] = useState(false);
@@ -85,7 +98,7 @@ export function ReviewSetup({ onProceedToSearch }: ReviewSetupProps) {
     setNewCrit({ kind: 'exclude', code: '', label: '', reason: '', detector_rule: '' });
   });
 
-  const activeCriteriaCount = criteriaVer?.criteria.filter(c => c.is_active).length || 0;
+  const activeCriteriaCount = criteriaVer?.criteria?.filter(c => c.is_active).length || 0;
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto py-2">

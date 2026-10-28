@@ -32,7 +32,11 @@ export class ApiError extends Error {
     this.name = 'ApiError';
   }
 }
-const baseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+const rawBase = (import.meta.env.VITE_API_BASE_URL || '/api').trim().replace(/\/$/, '');
+const normalizedBase = rawBase && !rawBase.startsWith('http') && !rawBase.startsWith('/')
+  ? `https://${rawBase}`
+  : rawBase;
+const baseUrl = normalizedBase.endsWith('/api') ? normalizedBase : `${normalizedBase}/api`;
 export async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   let response: Response;
   try {
@@ -70,7 +74,7 @@ function fromCriterion(c: Criterion): Wire.CriterionInput {
   };
 }
 function toCriteria(c: Wire.CriteriaVersion): CriteriaVersion {
-  return { ...c, version_no: c.version_number, created_by: '', criteria: c.criteria.map(toCriterion) };
+  return { ...c, version_no: c.version_number, created_by: '', criteria: (c.criteria || []).map(toCriterion) };
 }
 function toReview(r: Wire.Review): Review {
   return {
@@ -78,10 +82,10 @@ function toReview(r: Wire.Review): Review {
     comparator: r.pico?.comparator || r.pico?.C || '', outcome: r.pico?.outcome || r.pico?.O || '',
     active_criteria_version_id: r.active_criteria_version?.id,
     stats: {
-      total_records: r.counts.total_records, unique_groups: r.counts.unique_studies,
-      included: r.counts.screened_included, excluded: r.counts.screened_excluded,
-      maybe: r.counts.screened_maybe, unscreened: r.counts.unscreened,
-      conflicts: r.counts.open_conflicts, uncertain_duplicates: 0
+      total_records: r.counts?.total_records ?? 0, unique_groups: r.counts?.unique_studies ?? 0,
+      included: r.counts?.screened_included ?? 0, excluded: r.counts?.screened_excluded ?? 0,
+      maybe: r.counts?.screened_maybe ?? 0, unscreened: r.counts?.unscreened ?? 0,
+      conflicts: r.counts?.open_conflicts ?? 0, uncertain_duplicates: 0
     }
   };
 }
@@ -104,14 +108,14 @@ function toPico(p: Wire.PicoSpan, recordId: EntityId): PicoAnnotation {
 }
 function toRecord(r: Wire.RecordItem | Wire.RecordDetail): LiteratureRecord {
   const detail = 'abstract' in r ? r as Wire.RecordDetail : undefined;
-  const authors = r.authors.map(a => typeof a === 'string' ? a : a.full_name);
+  const authors = (r.authors || []).map(a => typeof a === 'string' ? a : a?.full_name || '');
   const suggestion = r.suggestion;
   return {
     id: r.id, review_id: r.review_id, source: r.source as LiteratureRecord['source'],
     source_record_id: r.source_record_id, title: r.title, title_norm: r.title.toLowerCase(),
-    abstract: detail?.abstract, authors_json: authors, first_author_norm: authors[0],
+    abstract: detail?.abstract, authors_json: authors, first_author_norm: authors[0] || '',
     journal: r.journal, year: r.publication_year, doi_norm: r.doi, pmid: r.pmid,
-    group_id: r.group_id || undefined, group_members_count: detail ? detail.cluster_members.length + 1 : undefined,
+    group_id: r.group_id || undefined, group_members_count: detail?.cluster_members ? detail.cluster_members.length + 1 : undefined,
     is_representative: r.is_representative, is_hidden: r.is_hidden,
     language: detail?.language, pub_types_json: detail?.publication_types || [], mesh_json: detail?.mesh_headings || [],
     content_hash: '', created_at: '', updated_at: '',
@@ -127,8 +131,8 @@ function toRecord(r: Wire.RecordItem | Wire.RecordDetail): LiteratureRecord {
         strength: suggestion.confidence >= 1 ? 'strong' : suggestion.confidence > 0 ? 'weak' : 'none'
       }, created_at: ''
     } : null,
-    decision_history: detail?.decisions.map(d => toDecision({ ...d, record_id: r.id }, r.review_id)),
-    pico_annotations: detail?.pico_spans.map(p => toPico(p, r.id))
+    decision_history: detail?.decisions ? detail.decisions.map(d => toDecision({ ...d, record_id: r.id }, r.review_id)) : [],
+    pico_annotations: detail?.pico_spans ? detail.pico_spans.map(p => toPico(p, r.id)) : []
   };
 }
 export interface RecordFilters {
@@ -224,7 +228,7 @@ export const api = {
     return {
       ...run, trigger: run.run_type as PipelineRun['trigger'], active_version_ids_json: [],
       finished_at: run.completed_at, error: run.error_message,
-      steps: [...run.steps].sort((a, b) => a.step_order - b.step_order).map(s => ({
+      steps: [...(run.steps || [])].sort((a, b) => a.step_order - b.step_order).map(s => ({
         ...s,
         step: stepNames[s.name] || 'store', finished_at: s.completed_at,
         output_summary_json: s.message ? { message: s.message } : undefined,
@@ -237,7 +241,7 @@ export const api = {
   async getDuplicatePairs(reviewId: EntityId, params?: { tier?: 'auto' | 'uncertain'; }): Promise<DuplicatePair[]> {
     const pairs = await request<Wire.DuplicatePair[]>(`/reviews/${id(reviewId)}/duplicate-pairs`);
     return pairs.filter(p => !params?.tier || (params.tier === 'uncertain' ? p.tier === 'tier_3_review_needed' : p.tier !== 'tier_3_review_needed')).map(p => {
-      const verdict = [...p.decisions].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+      const verdict = [...(p.decisions || [])].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
       return {
         id: p.id, review_id: p.review_id, record_a_id: p.record_a_id, record_b_id: p.record_b_id,
         method: 'unspecified', score: p.similarity_score, tier: p.tier === 'tier_3_review_needed' ? 'uncertain' : 'auto',

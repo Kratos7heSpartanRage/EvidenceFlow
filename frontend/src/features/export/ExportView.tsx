@@ -10,7 +10,7 @@ export function ExportView() {
     const records = await Promise.all(res.items.filter(r => !blocked.has(r.id)).map(r => api.getRecord(r.id)));
     return { records, conflicts };
   });
-  const { records, conflicts } = data;
+  const { records, conflicts } = data || { records: [], conflicts: [] };
 
   const handleDownloadCsv = useAction(async () => {
     const csvContent = await api.exportCsv(reviewId);
@@ -25,7 +25,7 @@ export function ExportView() {
     URL.revokeObjectURL(url);
   });
 
-  const openConflictsCount = conflicts.filter(c => c.status === 'open').length;
+  const openConflictsCount = (conflicts || []).filter(c => c.status === 'open').length;
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">

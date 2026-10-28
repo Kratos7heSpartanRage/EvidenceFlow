@@ -31,8 +31,8 @@ export function ConflictsWorkspace() {
       <div className="space-y-2">{conflicts.map(c => <button key={c.id} className={`w-full text-left p-3 rounded-xl border ${active.id === c.id ? 'border-brand-500 bg-slate-800' : 'border-slate-800 bg-slate-900'}`}
         onClick={() => { setSelectedId(c.id); setReason(''); }}><span className="block text-xs text-slate-400">{c.status}</span>{c.type.replace(/_/g, ' ')}</button>)}</div>
       <div className="lg:col-span-2 p-5 bg-slate-900 border border-slate-800 rounded-xl space-y-5">
-        <p className="text-sm">{active.details_json.explanation}</p>
-        {members.map(r => <div key={r.id} className="space-y-3 p-4 border border-slate-800 rounded-lg">
+        <p className="text-sm">{active.details_json?.explanation}</p>
+        {(members || []).map(r => <div key={r.id} className="space-y-3 p-4 border border-slate-800 rounded-lg">
           <h3 className="font-bold">{r.title}</h3>
           {(r.decision_history || []).filter(d => !d.superseded_by_id).map(d => <div key={d.id}><HumanDecisionBadge decision={d} /><p className="mt-2 text-xs text-slate-400">{d.reason_text || d.note}</p></div>)}
         </div>)}

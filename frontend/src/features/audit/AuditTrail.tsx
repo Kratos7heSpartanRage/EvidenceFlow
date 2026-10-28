@@ -12,11 +12,11 @@ export function AuditTrail() {
   const [search, setSearch] = useState('');
 
   const filteredEvents = events.filter(e => {
-    if (actorFilter === 'system' && !e.actor.toLowerCase().startsWith('system')) return false;
-    if (actorFilter === 'reviewer' && e.actor.toLowerCase().startsWith('system')) return false;
+    if (actorFilter === 'system' && !e.actor?.toLowerCase().startsWith('system')) return false;
+    if (actorFilter === 'reviewer' && e.actor?.toLowerCase().startsWith('system')) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
-      return e.action.toLowerCase().includes(q) || e.actor.toLowerCase().includes(q) || e.entity_type.toLowerCase().includes(q);
+      return (e.action?.toLowerCase().includes(q) ?? false) || (e.actor?.toLowerCase().includes(q) ?? false) || (e.entity_type?.toLowerCase().includes(q) ?? false);
     }
     return true;
   });

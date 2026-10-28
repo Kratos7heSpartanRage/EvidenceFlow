@@ -35,7 +35,7 @@ export function ScreeningQueue() {
   const [submitting, setSubmitting] = useState(false);
 
   const [criteriaVer] = useData(['criteria'], () => api.getCriteria(reviewId));
-  const criteria = criteriaVer.criteria;
+  const criteria = criteriaVer?.criteria || [];
   const deferredSearch = useDeferredValue(searchQuery);
   const params = {
     show_hidden: showHiddenDuplicates, decision: filterDecision === 'all' ? undefined : filterDecision,
