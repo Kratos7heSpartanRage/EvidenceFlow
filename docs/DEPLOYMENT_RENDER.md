@@ -55,7 +55,7 @@ Because the repository includes `render.yaml`, Render can set up all three servi
    - **Runtime**: `Python 3`
    - **Branch**: `main`
    - **Build Command**: `pip install -r backend/requirements.txt && alembic -c backend/alembic.ini upgrade head`
-   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - **Start Command**: `uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $PORT`
    - **Health Check Path**: `/api/health`
 4. Add **Environment Variables**:
    - `PYTHONPATH`: `backend`
