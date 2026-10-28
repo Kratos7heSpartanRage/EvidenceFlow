@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import io
 
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.core.errors import NotFoundError
 from app.models.audit import AuditEvent
@@ -38,18 +38,32 @@ class ExportService:
         has_open_conflicts = len(open_conflicts) > 0
         quarantined_group_ids = {c.group_id for c in open_conflicts}
 
-        # Query canonical, non-hidden representative records
-        records = (
-            self.db.query(Record)
-            .options(joinedload(Record.decisions))
+        from app.models.screening import ScreeningDecision
+
+        # Query only canonical, non-hidden representative records with active 'include' verdicts
+        query = (
+            self.db.query(Record, ScreeningDecision)
+            .join(
+                ScreeningDecision,
+                (ScreeningDecision.record_id == Record.id)
+                & (ScreeningDecision.superseded_by_id.is_(None))
+                & (ScreeningDecision.decision == "include"),
+            )
             .filter(
                 Record.review_id == review_id,
                 Record.is_hidden.is_(False),
                 Record.is_representative.is_(True),
             )
-            .order_by(Record.publication_year.desc().nullslast(), Record.created_at.asc())
-            .all()
         )
+        if quarantined_group_ids:
+            query = query.filter(
+                ~Record.group_id.in_(quarantined_group_ids),
+                ~Record.id.in_(quarantined_group_ids),
+            )
+
+        results = query.order_by(
+            Record.publication_year.desc().nullslast(), Record.created_at.asc()
+        ).all()
 
         output = io.StringIO()
         writer = csv.writer(output, dialect="excel", lineterminator="\r\n")
@@ -73,22 +87,7 @@ class ExportService:
         ]
         writer.writerow(headers)
 
-        for rec in records:
-            # Check quarantine status
-            if rec.group_id in quarantined_group_ids or rec.id in quarantined_group_ids:
-                continue
-
-            # Check active human screening decision
-            active_dec = None
-            if rec.decisions:
-                unsuperseded = [d for d in rec.decisions if d.superseded_by_id is None]
-                if unsuperseded:
-                    active_dec = max(unsuperseded, key=lambda d: d.created_at)
-
-            # Only export studies with active 'include' verdict
-            if not active_dec or active_dec.decision != "include":
-                continue
-
+        for rec, active_dec in results:
             # Format authors list
             authors_str = ""
             if rec.authors:

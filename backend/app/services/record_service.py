@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from sqlalchemy import or_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import NotFoundError
 from app.models.query import QueryRecord
 from app.models.record import Record
+from app.models.screening import ScreeningDecision
 from app.schemas.record import (
     PicoSpanItem,
     RecordDecisionSummary,
@@ -67,13 +68,32 @@ class RecordService:
                 )
             )
 
+        # Decision filter pushed down to database level using index
+        if decision:
+            if decision == "unscreened":
+                active_dec_subq = (
+                    self.db.query(ScreeningDecision.id)
+                    .filter(
+                        ScreeningDecision.record_id == Record.id,
+                        ScreeningDecision.superseded_by_id.is_(None),
+                    )
+                    .exists()
+                )
+                query = query.filter(~active_dec_subq)
+            elif decision in ("include", "exclude", "maybe"):
+                query = query.join(
+                    ScreeningDecision,
+                    (ScreeningDecision.record_id == Record.id)
+                    & (ScreeningDecision.superseded_by_id.is_(None)),
+                ).filter(ScreeningDecision.decision == decision)
+
         total_count = query.count()
 
-        # Eager load relationships to prevent N+1 queries
+        # Eager load relationships via selectinload to prevent Cartesian multiplication
         records = (
             query.options(
-                joinedload(Record.decisions),
-                joinedload(Record.suggestions),
+                selectinload(Record.decisions),
+                selectinload(Record.suggestions),
             )
             .order_by(Record.created_at.asc())
             .offset((page - 1) * page_size)
@@ -86,20 +106,16 @@ class RecordService:
             # Pick latest human decision
             active_decision = None
             if r.decisions:
-                latest_dec = max(r.decisions, key=lambda d: d.created_at)
-                active_decision = RecordDecisionSummary.model_validate(latest_dec)
+                unsuperseded = [d for d in r.decisions if d.superseded_by_id is None]
+                if unsuperseded:
+                    latest_dec = max(unsuperseded, key=lambda d: d.created_at)
+                    active_decision = RecordDecisionSummary.model_validate(latest_dec)
 
             # Pick latest machine suggestion
             active_suggestion = None
             if r.suggestions:
                 latest_sug = max(r.suggestions, key=lambda s: s.created_at)
                 active_suggestion = RecordSuggestionSummary.model_validate(latest_sug)
-
-            # Decision filter
-            if decision:
-                dec_val = active_decision.decision if active_decision else "unscreened"
-                if dec_val != decision:
-                    continue
 
             items.append(
                 RecordItem(
@@ -133,9 +149,9 @@ class RecordService:
         record = (
             self.db.query(Record)
             .options(
-                joinedload(Record.decisions),
-                joinedload(Record.suggestions),
-                joinedload(Record.pico_annotations),
+                selectinload(Record.decisions),
+                selectinload(Record.suggestions),
+                selectinload(Record.pico_annotations),
             )
             .filter(Record.id == record_id)
             .first()

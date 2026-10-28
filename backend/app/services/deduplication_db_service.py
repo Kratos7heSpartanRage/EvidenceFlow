@@ -93,7 +93,7 @@ class DatabaseDeduplicationService:
         commit: bool = True,
     ) -> list[DuplicatePair]:
         self._review(review_id)
-        valid_ids = {record.id for record in self.db.query(Record).filter_by(review_id=review_id)}
+        valid_ids = {r[0] for r in self.db.query(Record.id).filter_by(review_id=review_id).all()}
         inputs = {}
         allowed_tiers = {tier.value for tier in DuplicateTier}
         for pair in scored_pairs:
@@ -197,6 +197,11 @@ class DatabaseDeduplicationService:
             rejected,
             preferred_edges=[(edge[2], edge[3]) for edge in edges if edge[0] == 0],
         )
+        # Batch load existing groups in a single query to eliminate N+1 overhead
+        existing_groups = {
+            g.id: g for g in self.db.query(DedupGroup).filter_by(review_id=review_id).all()
+        }
+
         for member_ids in components:
             component = [record_map[record_id] for record_id in sorted(member_ids)]
             group_id = str(
@@ -205,20 +210,29 @@ class DatabaseDeduplicationService:
                 )
             )
             canonical = representative(to_engine_record(record) for record in component)
-            group = self.db.get(DedupGroup, group_id)
+            group = existing_groups.get(group_id)
             if group is None:
                 group = DedupGroup(id=group_id, review_id=review_id, canonical_record_id=canonical)
                 self.db.add(group)
+                existing_groups[group_id] = group
             elif group.canonical_record_id != canonical:
                 group.canonical_record_id = canonical
-            self.db.flush()
+
             for record in component:
                 record.group_id = group_id
                 record.is_representative = record.id == canonical
 
+        # Batch load open conflict fingerprints to eliminate N+1 conflict lookups
+        existing_conflict_fps = {
+            c[0]
+            for c in self.db.query(Conflict.open_fingerprint)
+            .filter(Conflict.review_id == review_id, Conflict.open_fingerprint.is_not(None))
+            .all()
+        }
+
         for a, b in sorted(blocked):
             fingerprint = f"{review_id}:pair_override:{a}:{b}"
-            if self.db.query(Conflict).filter_by(open_fingerprint=fingerprint).first() is None:
+            if fingerprint not in existing_conflict_fps:
                 path = find_transitive_conflict_path(a, b, [(edge[2], edge[3]) for edge in edges])
                 path_str = " -> ".join(path) if path else f"{a} <-> {b}"
                 self.db.add(
@@ -231,6 +245,8 @@ class DatabaseDeduplicationService:
                         resolution_note=f"Transitive conflict link: {path_str}. Human rejected pair ({a}, {b}) was transitively connected by machine edges.",
                     )
                 )
+                existing_conflict_fps.add(fingerprint)
+
         self.db.flush()
         # Old groups remain as historical identities referenced by snapshots.
         if commit:

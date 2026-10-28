@@ -216,30 +216,31 @@ class QueryService:
 
         # If records are provided directly (e.g. from adapter or test fixture), persist them idempotently
         if records_in is not None:
+            # Batch preload existing records and links to eliminate N+1 DB queries
+            existing_records = {
+                (r[0], r[1]): r[2]
+                for r in self.db.query(Record.source, Record.source_record_id, Record.id)
+                .filter(Record.review_id == query.review_id)
+                .all()
+            }
+            existing_links = {
+                qr[0]
+                for qr in self.db.query(QueryRecord.record_id)
+                .filter(QueryRecord.query_version_id == query.id)
+                .all()
+            }
+
             imported_count = 0
             for r_in in records_in:
-                # Check for existing record by idempotency key (review_id, source, source_record_id)
-                existing = (
-                    self.db.query(Record)
-                    .filter(
-                        Record.review_id == query.review_id,
-                        Record.source
-                        == (
-                            r_in.source.value if hasattr(r_in.source, "value") else str(r_in.source)
-                        ),
-                        Record.source_record_id == r_in.source_record_id,
-                    )
-                    .first()
-                )
+                src_val = r_in.source.value if hasattr(r_in.source, "value") else str(r_in.source)
+                rec_key = (src_val, r_in.source_record_id)
 
-                if existing:
-                    rec_id = existing.id
+                if rec_key in existing_records:
+                    rec_id = existing_records[rec_key]
                 else:
                     new_rec = Record(
                         review_id=query.review_id,
-                        source=r_in.source.value
-                        if hasattr(r_in.source, "value")
-                        else str(r_in.source),
+                        source=src_val,
                         source_record_id=r_in.source_record_id,
                         doi=r_in.doi,
                         pmid=r_in.pmid,
@@ -259,20 +260,14 @@ class QueryService:
                     self.db.add(new_rec)
                     self.db.flush()
                     rec_id = new_rec.id
+                    existing_records[rec_key] = rec_id
                     imported_count += 1
 
                 # Link record to this query version idempotently
-                existing_link = (
-                    self.db.query(QueryRecord)
-                    .filter(
-                        QueryRecord.query_version_id == query.id,
-                        QueryRecord.record_id == rec_id,
-                    )
-                    .first()
-                )
-                if not existing_link:
+                if rec_id not in existing_links:
                     qr = QueryRecord(query_version_id=query.id, record_id=rec_id)
                     self.db.add(qr)
+                    existing_links.add(rec_id)
 
             query.imported_count = (query.imported_count or 0) + imported_count
             # Fetch/store is a completed step. Commit it before deduplication,
