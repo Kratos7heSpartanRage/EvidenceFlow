@@ -19,10 +19,9 @@ returns `501 PIPELINE_NOT_READY` until that runner is connected.
 Machine pair evidence is immutable in the current schema. Changing an existing
 pending evaluation returns `409 PAIR_EVALUATION_CHANGED` until versioned evaluation
 storage is implemented. Historical group rows are retained and are not counted
-as active studies when they have no visible members. The revert endpoint remains
-unimplemented; snapshot capture alone is not a complete revert workflow.
+as active studies when they have no visible members.
 
-> **Implementation status (27 October 2026):** The document below includes the target API. Current routes implement health, reviews/criteria, query create/list/get/preview/diff, and run details. Screening/PICO review, conflict resolution, export, and revert are not implemented. Duplicate-pair review is implemented in the update above. The background import route returns `501 PIPELINE_NOT_READY`; a direct supplied-record service import returns `awaiting_processing` with downstream steps queued. See `INTEGRATION_ANALYSIS.md`.
+> **Implementation status (28 October 2026):** All core Role A backend modules are implemented and verified: Health, Reviews/Criteria, Query tree/preview/import/diff, Scenario E Zero-API Revert (`/api/queries/{id}/revert`), Duplicate-pairs review (`/api/reviews/{id}/duplicate-pairs`, `/api/reviews/{id}/pair-decisions`), Records listing & details (`/api/reviews/{id}/records`, `/api/records/{id}`), Screening decisions with mandatory exclusion reasons & conflict detection (`/api/records/{id}/screening`), PICO span curation (`/api/records/{id}/pico`), Conflict resolution by consensus (`/api/reviews/{id}/conflicts`, `/api/conflicts/{id}/resolve`), and RFC 4180 CSV Export & Audit Ledger (`/api/reviews/{id}/export.csv`, `/api/reviews/{id}/audit`). Direct supplied-record import returns `awaiting_processing` with downstream steps queued. All TypeScript types are synchronized in `frontend/src/types/api.ts`.
 
 ## Shared source and engine contract alignment
 
