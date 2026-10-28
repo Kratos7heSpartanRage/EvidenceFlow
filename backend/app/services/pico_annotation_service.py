@@ -1,14 +1,42 @@
-"""PICO annotation service handling human curation, confirmations, corrections, and audit logging."""
-
-from __future__ import annotations
+"""Append-only human PICO overlays; original machine rows are immutable."""
 
 from sqlalchemy.orm import Session
 
-from app.core.errors import NotFoundError
+from app.core.errors import NotFoundError, ValidationError
 from app.models.audit import AuditEvent
 from app.models.pico import PICOAnnotation
 from app.models.record import Record
 from app.schemas.pico import PicoOp, PicoPatchResponse
+
+
+def effective_pico_annotations(rows):
+    superseded = {row.supersedes_id for row in rows if row.supersedes_id}
+    by_id = {row.id: row for row in rows}
+    leaves = [row for row in rows if row.id not in superseded]
+    human = [row for row in leaves if row.origin == "human"]
+    machines = [row for row in leaves if row.origin == "machine"]
+    versioned = [row for row in machines if row.content_hash]
+    if versioned:
+        latest = max(versioned, key=lambda row: (row.created_at.replace(tzinfo=None), row.id))
+        machines = [
+            row
+            for row in machines
+            if (row.content_hash, row.algo_version) == (latest.content_hash, latest.algo_version)
+        ]
+
+    def key(row):
+        return row.element, row.text, row.start_index, row.end_index
+
+    suppressed = set()
+    for row in human:
+        original = row
+        while original.supersedes_id and original.supersedes_id in by_id:
+            original = by_id[original.supersedes_id]
+        suppressed.add(key(original))
+        suppressed.add(key(row))
+    return [row for row in machines if key(row) not in suppressed] + [
+        row for row in human if row.status != "rejected"
+    ]
 
 
 class PicoAnnotationService:
@@ -16,74 +44,93 @@ class PicoAnnotationService:
         self.db = db
 
     def patch_pico_annotations(
-        self,
-        record_id: str,
-        ops: list[PicoOp],
-        actor: str = "Human Reviewer",
+        self, record_id: str, ops: list[PicoOp], actor: str = "Human Reviewer"
     ) -> PicoPatchResponse:
-        """Applies human confirmations, corrections, or rejections to extracted PICO spans.
-
-        Maintains data integrity, never mutates raw provenance, and logs an append-only audit event.
-        """
-        record = self.db.query(Record).filter(Record.id == record_id).first()
-        if not record:
+        record = self.db.get(Record, record_id)
+        if record is None:
             raise NotFoundError(f"Record '{record_id}' was not found.")
-
-        target_ids = [op.span_id for op in ops]
-        existing_spans = (
-            self.db.query(PICOAnnotation)
-            .filter(
-                PICOAnnotation.id.in_(target_ids),
-                PICOAnnotation.record_id == record_id,
-            )
-            .all()
-        )
-        spans_by_id = {span.id: span for span in existing_spans}
-
-        applied_count = 0
-        for op in ops:
-            span = spans_by_id.get(op.span_id)
-            if not span:
-                continue
-
-            if op.op == "confirm":
-                span.is_confirmed = True
-                span.origin = "human"
-                applied_count += 1
-            elif op.op == "correct":
-                # Demote previous span and create corrected human annotation
-                span.is_confirmed = False
-                corrected_text = op.text.strip() if (op.text and op.text.strip()) else span.text
-                corrected_span = PICOAnnotation(
-                    record_id=record.id,
+        rows = self.db.query(PICOAnnotation).filter_by(record_id=record_id).all()
+        by_id = {row.id: row for row in rows}
+        if any(op.span_id not in by_id for op in ops):
+            raise NotFoundError("A target annotation was not found on this record.")
+        children = {
+            row.supersedes_id: row
+            for row in sorted(rows, key=lambda row: (row.created_at.replace(tzinfo=None), row.id))
+            if row.supersedes_id
+        }
+        applied = 0
+        try:
+            for op in ops:
+                span = by_id[op.span_id]
+                while span.id in children:
+                    span = children[span.id]
+                status = {"confirm": "confirmed", "correct": "corrected", "reject": "rejected"}[
+                    op.op
+                ]
+                text = (op.text or "").strip() if op.op == "correct" else span.text
+                if not text:
+                    raise ValidationError("A corrected annotation requires nonempty text.")
+                start, end = span.start_index, span.end_index
+                if op.op != "reject":
+                    abstract = record.abstract or ""
+                    if op.start_index is not None:
+                        start = op.start_index
+                    elif abstract[start:end] != text:
+                        start = abstract.find(text)
+                        if start < 0 or abstract.find(text, start + 1) >= 0:
+                            raise ValidationError(
+                                "Corrected text must match an unambiguous abstract span; supply start_index for repeated text."
+                            )
+                    end = start + len(text)
+                    if op.end_index is not None and op.end_index != end:
+                        raise ValidationError("end_index does not match the selected text.")
+                    if abstract[start:end] != text:
+                        raise ValidationError(
+                            "Annotation offsets must slice the exact abstract text."
+                        )
+                if span.origin == "human" and (
+                    span.status,
+                    span.text,
+                    span.start_index,
+                    span.end_index,
+                ) == (status, text, start, end):
+                    continue
+                overlay = PICOAnnotation(
+                    record_id=record_id,
                     element=span.element,
-                    text=corrected_text,
-                    start_index=span.start_index,
-                    end_index=span.start_index + len(corrected_text),
-                    confidence=1.0,
+                    text=text,
+                    start_index=start,
+                    end_index=end,
+                    confidence=None,
                     origin="human",
-                    is_confirmed=True,
+                    is_confirmed=op.op != "reject",
+                    status=status,
+                    supersedes_id=span.id,
+                    reviewer=actor,
+                    content_hash=span.content_hash,
+                    algo_version=span.algo_version,
                 )
-                self.db.add(corrected_span)
-                applied_count += 1
-            elif op.op == "reject":
-                span.is_confirmed = False
-                applied_count += 1
-
-        if applied_count > 0:
-            audit = AuditEvent(
-                review_id=record.review_id,
-                actor=actor,
-                event_type="pico_annotated",
-                target_type="record",
-                target_id=record.id,
-                after_state={
-                    "applied_count": applied_count,
-                    "ops": [op.model_dump() for op in ops],
-                },
-                note=f"Human curation of {applied_count} PICO entity span(s)",
-            )
-            self.db.add(audit)
-            self.db.commit()
-
-        return PicoPatchResponse(status="updated", updated_count=applied_count)
+                self.db.add(overlay)
+                self.db.flush()
+                children[span.id] = overlay
+                by_id[overlay.id] = overlay
+                applied += 1
+            if applied:
+                self.db.add(
+                    AuditEvent(
+                        review_id=record.review_id,
+                        actor=actor,
+                        event_type="pico_annotated",
+                        target_type="record",
+                        target_id=record_id,
+                        after_state={
+                            "applied_count": applied,
+                            "ops": [op.model_dump() for op in ops],
+                        },
+                    )
+                )
+                self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+        return PicoPatchResponse(status="updated", updated_count=applied)

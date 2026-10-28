@@ -1,16 +1,27 @@
-"""Screening Decision service managing human decisions, cluster propagation, conflict detection, and audit logging."""
-
-from __future__ import annotations
+"""Human screening decisions: append history, preserve opposing reviewers, audit changes."""
 
 from sqlalchemy.orm import Session
 
 from app.core.database import utc_now
-from app.core.errors import NotFoundError
+from app.core.errors import NotFoundError, ValidationError
 from app.models.audit import AuditEvent
 from app.models.loop import Conflict
 from app.models.record import Record
+from app.models.review import CriteriaVersion, Criterion
 from app.models.screening import ScreeningDecision
 from app.schemas.screening import ScreeningDecisionIn
+
+
+def validate_criterion_scope(db, review_id, criterion_id):
+    if (
+        criterion_id
+        and db.query(Criterion.id)
+        .join(CriteriaVersion)
+        .filter(Criterion.id == criterion_id, CriteriaVersion.review_id == review_id)
+        .first()
+        is None
+    ):
+        raise ValidationError("The selected criterion does not belong to this review.")
 
 
 class DecisionService:
@@ -20,130 +31,125 @@ class DecisionService:
     def record_screening_decision(
         self, record_id: str, data: ScreeningDecisionIn
     ) -> ScreeningDecision:
-        """Records a human screening verdict, supersedes prior decisions append-only,
-
-        propagates to sibling cluster members, detects reviewer conflicts, and logs an audit event.
-        """
-        record = self.db.query(Record).filter(Record.id == record_id).first()
-        if not record:
+        record = self.db.get(Record, record_id)
+        if record is None:
             raise NotFoundError(f"Record '{record_id}' was not found.")
-
-        # Determine all target records in the cluster
-        if record.group_id:
-            cluster_records = self.db.query(Record).filter(Record.group_id == record.group_id).all()
-        else:
-            cluster_records = [record]
-
-        record_ids = [r.id for r in cluster_records]
-
-        # Fetch all currently active decisions for these cluster records (single query)
-        active_decisions = (
+        validate_criterion_scope(self.db, record.review_id, data.criterion_id)
+        records = (
+            self.db.query(Record)
+            .filter(Record.review_id == record.review_id, Record.group_id == record.group_id)
+            .all()
+            if record.group_id
+            else [record]
+        )
+        ids = [row.id for row in records]
+        active = (
             self.db.query(ScreeningDecision)
             .filter(
-                ScreeningDecision.record_id.in_(record_ids),
-                ScreeningDecision.superseded_by_id.is_(None),
+                ScreeningDecision.record_id.in_(ids), ScreeningDecision.superseded_by_id.is_(None)
             )
             .all()
         )
-        active_by_record = {d.record_id: d for d in active_decisions}
-
-        primary_prev = active_by_record.get(record.id)
-
-        # Conflict Detection:
-        # Check if an opposing decision exists by a different reviewer
-        has_opposing_decision = False
-        opposing_reasons = []
-        for prev in active_decisions:
-            if prev.reviewer_name != data.reviewer_name and {prev.decision, data.decision} == {
-                "include",
-                "exclude",
-            }:
-                has_opposing_decision = True
-                opposing_reasons.append(
-                    f"Reviewer '{prev.reviewer_name}' decided '{prev.decision}', "
-                    f"while '{data.reviewer_name}' decided '{data.decision}'."
-                )
-
-        if has_opposing_decision:
-            group_ref = record.group_id or record.id
-            fingerprint = f"{record.review_id}:{group_ref}:include_vs_exclude"
-            existing_conflict = (
-                self.db.query(Conflict)
-                .filter(Conflict.open_fingerprint == fingerprint, Conflict.status == "open")
-                .first()
-            )
-            if not existing_conflict:
-                conflict = Conflict(
-                    review_id=record.review_id,
-                    group_id=group_ref,
-                    reason="include_vs_exclude",
-                    status="open",
-                    open_fingerprint=fingerprint,
-                    resolution_note="; ".join(opposing_reasons),
-                )
-                self.db.add(conflict)
-
-        # Create new decisions and supersede previous ones append-only
-        created_decisions: list[ScreeningDecision] = []
-        primary_decision: ScreeningDecision | None = None
-
-        for rec in cluster_records:
-            is_target = rec.id == record.id
-            origin = "human" if is_target else "inherited"
-
-            new_decision = ScreeningDecision(
-                record_id=rec.id,
-                group_id=rec.group_id,
-                decision=data.decision,
-                criterion_id=data.criterion_id,
-                reason_text=data.reason_text,
-                reviewer_name=data.reviewer_name,
-                origin=origin,
-                note=data.note
-                if is_target
-                else f"Inherited from human decision on record {record.id}",
-                created_at=utc_now(),
-            )
-            self.db.add(new_decision)
-            self.db.flush()  # generates new_decision.id
-
-            prev = active_by_record.get(rec.id)
-            if prev:
-                prev.superseded_by_id = new_decision.id
-
-            created_decisions.append(new_decision)
-            if is_target:
-                primary_decision = new_decision
-
-        # Append-only Audit Trail
-        audit_event = AuditEvent(
-            review_id=record.review_id,
-            actor=data.reviewer_name,
-            event_type="human_screening",
-            target_type="record",
-            target_id=record.id,
-            before_state=(
-                {
-                    "decision": primary_prev.decision,
-                    "criterion_id": primary_prev.criterion_id,
-                    "reason_text": primary_prev.reason_text,
-                }
-                if primary_prev
-                else None
-            ),
-            after_state={
-                "decision": data.decision,
-                "criterion_id": data.criterion_id,
-                "reason_text": data.reason_text,
-                "cluster_records_count": len(cluster_records),
-            },
-            note=data.note,
+        own = [
+            row
+            for row in active
+            if row.record_id == record_id
+            and row.reviewer_name == data.reviewer_name
+            and row.origin != "inherited"
+        ]
+        previous = max(
+            own, key=lambda row: (row.created_at.replace(tzinfo=None), row.id), default=None
         )
-        self.db.add(audit_event)
-
-        self.db.commit()
-        if primary_decision:
-            self.db.refresh(primary_decision)
-            return primary_decision
-
-        return created_decisions[0]
+        payload = (data.decision, data.criterion_id, data.reason_text, data.note)
+        if (
+            previous
+            and (previous.decision, previous.criterion_id, previous.reason_text, previous.note)
+            == payload
+            and all(any(row.record_id == item.id for row in active) for item in records)
+        ):
+            return previous
+        opposed = [
+            row
+            for row in active
+            if {row.decision, data.decision} == {"include", "exclude"}
+            and (
+                row.reviewer_name != data.reviewer_name
+                or (row.record_id != record_id and row.origin == "human")
+            )
+        ]
+        group_ref = record.group_id or record.id
+        if opposed:
+            key = f"{record.review_id}:{group_ref}:include_vs_exclude"
+            if (
+                self.db.query(Conflict).filter_by(open_fingerprint=key, status="open").first()
+                is None
+            ):
+                self.db.add(
+                    Conflict(
+                        review_id=record.review_id,
+                        group_id=group_ref,
+                        reason="include_vs_exclude",
+                        status="open",
+                        open_fingerprint=key,
+                        resolution_note="; ".join(
+                            f"{row.reviewer_name}: {row.decision}; {data.reviewer_name}: {data.decision}"
+                            for row in opposed
+                        ),
+                    )
+                )
+        primary = None
+        try:
+            for item in records:
+                current = [row for row in active if row.record_id == item.id]
+                if item.id != record_id and any(
+                    row in opposed and row.origin == "human" for row in current
+                ):
+                    continue
+                new = ScreeningDecision(
+                    record_id=item.id,
+                    group_id=item.group_id,
+                    decision=data.decision,
+                    criterion_id=data.criterion_id,
+                    reason_text=data.reason_text,
+                    reviewer_name=data.reviewer_name,
+                    origin="human" if item.id == record_id else "inherited",
+                    note=data.note
+                    if item.id == record_id
+                    else f"Inherited from human decision on record {record_id}",
+                    created_at=utc_now(),
+                )
+                self.db.add(new)
+                self.db.flush()
+                for row in current:
+                    if row.reviewer_name == data.reviewer_name:
+                        row.superseded_by_id = new.id
+                if item.id == record_id:
+                    primary = new
+            self.db.add(
+                AuditEvent(
+                    review_id=record.review_id,
+                    actor=data.reviewer_name,
+                    event_type="human_screening",
+                    target_type="record",
+                    target_id=record_id,
+                    before_state={
+                        "decision": previous.decision,
+                        "criterion_id": previous.criterion_id,
+                        "reason_text": previous.reason_text,
+                    }
+                    if previous
+                    else None,
+                    after_state={
+                        "decision": data.decision,
+                        "criterion_id": data.criterion_id,
+                        "reason_text": data.reason_text,
+                        "cluster_records_count": len(records),
+                    },
+                    note=data.note,
+                )
+            )
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+        return primary

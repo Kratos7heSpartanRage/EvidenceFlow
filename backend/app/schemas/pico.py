@@ -13,6 +13,8 @@ class PicoOp(BaseModel):
     op: Literal["confirm", "correct", "reject"]
     span_id: str = Field(..., description="Target annotation ID")
     text: str | None = Field(default=None, description="Corrected entity text when op is 'correct'")
+    start_index: int | None = Field(default=None, ge=0)
+    end_index: int | None = Field(default=None, ge=0)
 
 
 class PicoPatchIn(BaseModel):

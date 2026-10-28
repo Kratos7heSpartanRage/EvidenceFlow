@@ -7,6 +7,8 @@ $$\text{Review Protocol} \longrightarrow \text{Query Trees} \longrightarrow \tex
 
 EvidenceFlow solves the fundamental challenge of systematic reviews: **How to iterate on literature search queries without losing human reviewer screening decisions, duplicate pair resolutions, or audit history.**
 
+> **Latest integration:** See [28 October reconciliation](docs/PR_RECONCILIATION_OCT28.md) for tested behavior, migration requirements, and remaining UI/loop limits. Older C drafts are preserved in [the archive](docs/archive/MEMBER_C_REPORT.md).
+
 ---
 
 ## 1. Non-Negotiable Architectural Invariants
@@ -24,7 +26,7 @@ EvidenceFlow solves the fundamental challenge of systematic reviews: **How to it
 
 ```mermaid
 graph TD
-    UI[Frontend: React 19 + TypeScript - Member D] -->|REST JSON API| API[FastAPI Application Layer - Member A]
+    UI[Frontend: React 18 + TypeScript - Member D] -->|REST JSON API| API[FastAPI Application Layer - Member A]
     API --> SVC[Domain Services Layer - Member A]
     SVC --> REPO[SQLAlchemy Repositories - Member A]
     REPO --> DB[(SQLite WAL / PostgreSQL - Member A)]
@@ -35,16 +37,16 @@ graph TD
 ```
 
 ### High-Efficiency Algorithmic Foundations
-- **Graph Connected-Components with Rejection Guards (Disjoint-Set Union / Union-Find)**: Merges candidate duplicate pairs into canonical `DedupGroup` clusters in near $O(V + E)$ time while strictly enforcing negative constraints (Scenario D cannot-links).
+- **Graph Connected-Components with Rejection Guards (Disjoint-Set Union / Union-Find)**: Groups proposed edges in stable order while enforcing negative constraints (Scenario D cannot-links). Rejection checks add work proportional to the current cannot-link set; dense candidate blocks can be quadratic.
 - **Breadth-First Search (BFS) Transitive Conflict Paths**: When an edge violates a human pair rejection, the system executes BFS to reconstruct and display the exact explanatory path (`A -> C -> B`) in $O(V + E)$.
 - **Deterministic Canonical Representative Election**: Within each cluster, the primary study is chosen by:
-  $$\text{Presence of DOI} > \text{Presence of PMID} > \text{Longest Abstract} > \text{Earliest Publication Year}$$
-- **Zero-API Rollback (Scenario E)**: Workspace state is restored directly from immutable `GroupSnapshot` rows in $O(1)$ dictionary lookups without making external HTTP requests.
-- **Elimination of N+1 Queries**: Relational traversals use eager `joinedload` on decisions, suggestions, and PICO spans.
+  $$\text{Nonempty Abstract} > \text{Valid DOI} > \text{PubMed Source} > \text{Lowest Internal ID}$$
+- **Zero-API Rollback (Scenario E)**: Workspace state is restored directly from immutable `GroupSnapshot` rows using constant-time dictionary lookups within an overall linear restore pass, without external HTTP requests.
+- **Eager Loading**: Record list/detail paths use `selectinload`/`joinedload` to reduce repeated relationship queries; this is not a benchmark of every pipeline stage.
 
 ---
 
-## 3. Relational Schema Catalog (18 Tables)
+## 3. Relational Schema Catalog
 
 ```mermaid
 erDiagram

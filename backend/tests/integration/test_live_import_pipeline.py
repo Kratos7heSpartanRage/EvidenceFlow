@@ -353,6 +353,7 @@ def test_criteria_mapping_uses_detector_rule_never_labels():
     assert [(s.id, s.code, s.kind, s.detector) for s in specs] == [
         ("c1", "non_human", "exclude", "metadata_then_rule"),
         ("c2", "custom_keyword", "exclude", "rule"),
+        ("c3", "manual", "include", "manual_only"),
     ]
     assert list(specs[1].params["terms"]) == ["children", "infants"]
     assert specs[0].reason == "Humans only"

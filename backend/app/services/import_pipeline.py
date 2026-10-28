@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session
 from app.adapters.base import SourceError
 from app.core.config import settings
 from app.core.database import SessionLocal, utc_now
+from app.engines.pico import ALGO_VERSION as PICO_ALGO_VERSION
 from app.engines.pico import extract_pico
 from app.engines.screening import ALGO_VERSION as SCREENING_ALGO_VERSION
 from app.engines.screening import screen
@@ -114,12 +115,21 @@ def criterion_specs(criteria: Iterable[Criterion]) -> list[CriterionSpec]:
       metadata first, then the engine's documented rule;
     - any other rule is read as alternative keywords separated by "|"
       (e.g. "rats|mice|murine") and matched in the title and abstract;
-    - no rule means the reviewer applies the criterion, so the engine skips it.
+    - no rule means manual assessment; it prevents an automatic Include.
     """
     specs: list[CriterionSpec] = []
     for criterion in criteria:
         rule = (criterion.detector_rule or "").strip()
         if not rule:
+            specs.append(
+                CriterionSpec(
+                    criterion.id,
+                    "manual",
+                    kind="include" if criterion.type == "inclusion" else "exclude",
+                    reason=(criterion.description or criterion.label).strip(),
+                    detector="manual_only",
+                )
+            )
             continue
         kind = "include" if criterion.type == "inclusion" else "exclude"
         reason = (criterion.description or criterion.label or "").strip() or "Reviewer criterion"
@@ -272,10 +282,17 @@ class ImportPipeline:
         run = self.db.get(PipelineRun, run_id)
         if run is None:
             raise ValueError(f"Pipeline run '{run_id}' was not found.")
+        claimed = (
+            self.db.query(PipelineRun)
+            .filter_by(id=run_id, status="queued")
+            .update({"status": "running"}, synchronize_session=False)
+        )
+        self.db.commit()
+        self.db.refresh(run)
+        if not claimed:
+            return run
         query = self.db.get(QueryVersion, run.query_version_id)
         steps = {step.name: step for step in run.steps}
-        run.status = "running"
-        self.db.commit()
 
         summary: dict[str, Any] = {}
         for name in STEP_NAMES:
@@ -339,6 +356,10 @@ class ImportPipeline:
 
         new_records = 0
         for record in result.records:
+            if record.source.value != query.source:
+                raise StepFailed(
+                    "The source returned a record from a different literature adapter."
+                )
             if record.source_record_id in known:
                 continue
             row = _record_row(review_id, record)
@@ -363,6 +384,10 @@ class ImportPipeline:
                 self.db.add(QueryRecord(query_version_id=query.id, record_id=record_id))
                 linked.add(record_id)
 
+        if linked:
+            self.db.query(Record).filter(
+                Record.review_id == review_id, Record.id.in_(linked)
+            ).update({"is_hidden": False}, synchronize_session="fetch")
         warnings = list(result.warnings)
         if unresolved:
             warnings.append(f"{len(unresolved)} returned id(s) had no usable record")
@@ -466,10 +491,11 @@ class ImportPipeline:
             )
             existing.add((record.id, key))
             created += 1
-        summary.update(screened=counted, new_suggestions=created, engine_criteria=len(specs))
+        machine_count = sum(spec.detector != "manual_only" for spec in specs)
+        summary.update(screened=counted, new_suggestions=created, engine_criteria=machine_count)
         return (
             f"{created} new suggestion(s) for {counted} study record(s); "
-            f"{len(specs)} of {len(criteria)} criteria have a machine detector"
+            f"{machine_count} of {len(criteria)} criteria have a machine detector"
         )
 
     def _current_decision(self, record_id: str) -> str | None:
@@ -496,16 +522,19 @@ class ImportPipeline:
     def _step_pico_extract(self, run, query, summary) -> str:
         review = self.db.get(Review, query.review_id)
         terms = pico_terms(review.pico)
-        already_tagged = {
-            row[0]
-            for row in self.db.query(PICOAnnotation.record_id)
-            .filter(PICOAnnotation.origin == "machine")
-            .distinct()
+        already_tagged = set(
+            self.db.query(PICOAnnotation.record_id, PICOAnnotation.content_hash)
+            .filter(
+                PICOAnnotation.origin == "machine", PICOAnnotation.algo_version == PICO_ALGO_VERSION
+            )
             .all()
-        }
+        )
         tagged = spans_added = skipped_excluded = 0
         for record in self._representatives(review.id):
-            if record.id in already_tagged:
+            batch_hash = fingerprint(
+                {"record": to_engine_record(record).input_hash, "terms": terms.input_hash}
+            )
+            if (record.id, batch_hash) in already_tagged:
                 continue
             decision = self._current_decision(record.id) or self._latest_suggestion(record.id)
             if decision == "exclude":
@@ -526,9 +555,12 @@ class ImportPipeline:
                         element=span.label,
                         text=span.text[:500],
                         start_index=span.start_char,
-                        end_index=span.end_char,
+                        end_index=span.start_char + len(span.text[:500]),
                         confidence=None,
                         origin="machine",
+                        content_hash=batch_hash,
+                        algo_version=PICO_ALGO_VERSION,
+                        status="suggested",
                     )
                 )
             if spans:

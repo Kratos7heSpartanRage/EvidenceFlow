@@ -24,6 +24,11 @@ class PICOAnnotation(Base):
 
     origin = Column(String(20), nullable=False, default="machine")  # 'machine' | 'human'
     is_confirmed = Column(Boolean, nullable=False, default=False)
+    status = Column(String(20), nullable=False, default="suggested")
+    supersedes_id = Column(String(36), ForeignKey("pico_annotations.id"), nullable=True)
+    reviewer = Column(String(255), nullable=True)
+    content_hash = Column(String(64), nullable=True)
+    algo_version = Column(String(50), nullable=True)
     created_at = Column(DateTime, nullable=False, default=utc_now)
 
     record = relationship("Record", back_populates="pico_annotations")

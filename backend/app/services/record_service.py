@@ -17,6 +17,7 @@ from app.schemas.record import (
     RecordListResponse,
     RecordSuggestionSummary,
 )
+from app.services.pico_annotation_service import effective_pico_annotations
 
 
 class RecordService:
@@ -87,6 +88,7 @@ class RecordService:
                     & (ScreeningDecision.superseded_by_id.is_(None)),
                 ).filter(ScreeningDecision.decision == decision)
 
+        query = query.distinct()
         total_count = query.count()
 
         # Eager load relationships via selectinload to prevent Cartesian multiplication
@@ -148,6 +150,7 @@ class RecordService:
         """Fetches full bibliographic record details with decisions, suggestions, PICO, and cluster members."""
         record = (
             self.db.query(Record)
+            .populate_existing()
             .options(
                 selectinload(Record.decisions),
                 selectinload(Record.suggestions),
@@ -176,7 +179,10 @@ class RecordService:
         # PICO Spans
         pico_spans = [
             PicoSpanItem.model_validate(p)
-            for p in sorted(record.pico_annotations, key=lambda p: p.start_index or 0)
+            for p in sorted(
+                effective_pico_annotations(record.pico_annotations),
+                key=lambda p: p.start_index or 0,
+            )
         ]
 
         # Sibling cluster members
@@ -229,5 +235,6 @@ class RecordService:
             decisions=[RecordDecisionSummary.model_validate(d) for d in decisions_sorted],
             suggestions=[RecordSuggestionSummary.model_validate(s) for s in suggestions_sorted],
             pico_spans=pico_spans,
+            pico_history=[PicoSpanItem.model_validate(p) for p in record.pico_annotations],
             cluster_members=cluster_members,
         )

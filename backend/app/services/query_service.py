@@ -244,6 +244,7 @@ class QueryService:
 
                 if rec_key in existing_records:
                     rec_id = existing_records[rec_key]
+                    self.db.query(Record).filter_by(id=rec_id).update({"is_hidden": False})
                 else:
                     new_rec = Record(
                         review_id=query.review_id,
@@ -357,7 +358,7 @@ class QueryService:
         snapshots = (
             self.db.query(GroupSnapshot).filter(GroupSnapshot.query_version_id == query_id).all()
         )
-        if not snapshots:
+        if not snapshots and not query.snapshot_captured:
             raise ValidationError(
                 f"Cannot revert to query '{query_id}': no group snapshot exists for this query version."
             )
@@ -370,34 +371,42 @@ class QueryService:
 
         restored_count = 0
         hidden_count = 0
+        changed = False
 
         for r in records:
             if r.id in snapshot_by_record:
                 snap = snapshot_by_record[r.id]
+                changed |= (
+                    r.is_hidden
+                    or r.group_id != snap.group_id
+                    or r.is_representative != (str(snap.is_representative).lower() == "true")
+                )
                 r.is_hidden = False
                 r.group_id = snap.group_id
                 r.is_representative = str(snap.is_representative).lower() == "true"
                 restored_count += 1
             else:
+                changed |= not r.is_hidden
                 r.is_hidden = True
                 hidden_count += 1
 
         # Audit event
-        self.audit.log(
-            review_id=query.review_id,
-            actor=actor,
-            event_type="query_reverted",
-            target_type="query_version",
-            target_id=query.id,
-            before_state=None,
-            after_state={
-                "restored_version_id": query.id,
-                "version_number": query.version_number,
-                "restored_records_count": restored_count,
-                "hidden_records_count": hidden_count,
-            },
-            note=f"Zero-API rollback to Query v{query.version_number} ({query.label})",
-        )
+        if changed:
+            self.audit.log(
+                review_id=query.review_id,
+                actor=actor,
+                event_type="query_reverted",
+                target_type="query_version",
+                target_id=query.id,
+                before_state=None,
+                after_state={
+                    "restored_version_id": query.id,
+                    "version_number": query.version_number,
+                    "restored_records_count": restored_count,
+                    "hidden_records_count": hidden_count,
+                },
+                note=f"Zero-API rollback to Query v{query.version_number} ({query.label})",
+            )
 
         self.db.commit()
         return QueryRevertResponse(

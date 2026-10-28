@@ -23,6 +23,7 @@ from app.models.loop import Conflict
 from app.models.query import QueryRecord, QueryVersion
 from app.models.record import Record
 from app.models.review import Review
+from app.models.screening import ScreeningDecision
 from app.schemas.contracts import DuplicateTier, ScoredPair
 from app.schemas.dedup import (
     DuplicatePairResponse,
@@ -247,6 +248,39 @@ class DatabaseDeduplicationService:
                 )
                 existing_conflict_fps.add(fingerprint)
 
+        decisions = (
+            self.db.query(ScreeningDecision)
+            .filter(
+                ScreeningDecision.record_id.in_(record_map),
+                ScreeningDecision.superseded_by_id.is_(None),
+            )
+            .all()
+        )
+        values_by_group = {}
+        for decision in decisions:
+            values_by_group.setdefault(record_map[decision.record_id].group_id, set()).add(
+                decision.decision
+            )
+        for group_id, values in values_by_group.items():
+            if len(values) <= 1:
+                continue
+            reason = (
+                "include_vs_exclude"
+                if {"include", "exclude"} <= values
+                else "group_decision_conflict"
+            )
+            key = f"{review_id}:{group_id}:{reason}"
+            if key not in existing_conflict_fps:
+                self.db.add(
+                    Conflict(
+                        review_id=review_id,
+                        group_id=group_id,
+                        reason=reason,
+                        status="open",
+                        open_fingerprint=key,
+                    )
+                )
+                existing_conflict_fps.add(key)
         self.db.flush()
         # Old groups remain as historical identities referenced by snapshots.
         if commit:
@@ -397,7 +431,10 @@ class DatabaseDeduplicationService:
         if query is None:
             raise NotFoundError(f"Query version '{query_version_id}' was not found.")
         existing = self.db.query(GroupSnapshot).filter_by(query_version_id=query_version_id).all()
-        if existing:
+        if existing or query.snapshot_captured:
+            query.snapshot_captured = True
+            if commit:
+                self.db.commit()
             return len(existing)
         records = (
             self.db.query(Record)
@@ -410,15 +447,25 @@ class DatabaseDeduplicationService:
         )
         if any(not record.group_id for record in records):
             raise ConflictError("Group every query record before capturing its snapshot.")
+        scoped_groups = {}
+        for record in records:
+            scoped_groups.setdefault(record.group_id, []).append(record)
+        scoped_representatives = {
+            key: representative(to_engine_record(record) for record in members)
+            for key, members in scoped_groups.items()
+        }
         for record in records:
             self.db.add(
                 GroupSnapshot(
                     query_version_id=query_version_id,
                     record_id=record.id,
                     group_id=record.group_id,
-                    is_representative="true" if record.is_representative else "false",
+                    is_representative="true"
+                    if scoped_representatives[record.group_id] == record.id
+                    else "false",
                 )
             )
+        query.snapshot_captured = True
         self.db.flush()
         if commit:
             self.db.commit()

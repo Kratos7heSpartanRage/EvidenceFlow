@@ -1,3 +1,5 @@
+> Updated integration and migration notes: [PR reconciliation](../docs/PR_RECONCILIATION_OCT28.md).
+
 # EvidenceFlow backend
 
 Status: source adapters, database/models, review/query API, and processing-engine baseline are integrated. See [setup](../README.md) and the [integration analysis](../docs/INTEGRATION_ANALYSIS.md) for current workflow limits.

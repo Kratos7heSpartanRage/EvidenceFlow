@@ -38,6 +38,8 @@ class PicoSpanItem(BaseModel):
     origin: str
     is_confirmed: bool = False
     status: str | None = None
+    supersedes_id: str | None = None
+    reviewer: str | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -75,5 +77,6 @@ class RecordDetailResponse(RecordItem):
     decisions: list[RecordDecisionSummary] = Field(default_factory=list)
     suggestions: list[RecordSuggestionSummary] = Field(default_factory=list)
     pico_spans: list[PicoSpanItem] = Field(default_factory=list)
+    pico_history: list[PicoSpanItem] = Field(default_factory=list)
     cluster_members: list[RecordItem] = Field(default_factory=list)
     model_config = ConfigDict(from_attributes=True)

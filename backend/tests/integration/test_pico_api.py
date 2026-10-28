@@ -125,8 +125,10 @@ def test_pico_curation_pipeline(client):
     db = SessionLocal()
     try:
         p_span = db.query(PICOAnnotation).filter(PICOAnnotation.id == p_id).first()
-        assert p_span.is_confirmed is True
-        assert p_span.origin == "human"
+        assert p_span.is_confirmed is False
+        assert p_span.origin == "machine"
+        confirmed = db.query(PICOAnnotation).filter_by(supersedes_id=p_id).one()
+        assert confirmed.is_confirmed is True and confirmed.origin == "human"
 
         old_i = db.query(PICOAnnotation).filter(PICOAnnotation.id == i_id).first()
         assert old_i.is_confirmed is False

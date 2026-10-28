@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import io
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.errors import NotFoundError
@@ -57,7 +58,7 @@ class ExportService:
         )
         if quarantined_group_ids:
             query = query.filter(
-                ~Record.group_id.in_(quarantined_group_ids),
+                or_(Record.group_id.is_(None), ~Record.group_id.in_(quarantined_group_ids)),
                 ~Record.id.in_(quarantined_group_ids),
             )
 
@@ -87,7 +88,11 @@ class ExportService:
         ]
         writer.writerow(headers)
 
+        emitted = set()
         for rec, active_dec in results:
+            if rec.id in emitted:
+                continue
+            emitted.add(rec.id)
             # Format authors list
             authors_str = ""
             if rec.authors:

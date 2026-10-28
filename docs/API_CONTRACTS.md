@@ -1,37 +1,16 @@
-## PR #8 implementation update
+> **Implemented backend status, 28 October 2026:** Approved background imports now run fetch/store/dedup/screen/PICO. Records, screening, PICO curation, conflicts, query revert, CSV export, and audit endpoints are present. See `PR_RECONCILIATION_OCT28.md` for verified behavior and remaining limits.
 
-The duplicate-pair GET and pair-decision POST routes are now implemented. Both
-operate within the selected review. `RecordSummary.authors` is a list of display
-name strings, including when stored authors are structured objects.
+## Current integration details
 
-`PairDecisionIn` accepts exactly one target form: `duplicate_pair_id`, or both
-`record_a_id` and `record_b_id`. Targets must exist in the review; self pairs and
-incomplete/ambiguous targets return 422. Identical repeated verdicts are no-ops.
-The latest verdict controls grouping, with earlier rows preserved. Database
-verdict, regrouping, and audit writes form one transaction.
-
-The direct-record import helper now runs real candidate scoring and deduplication,
-records immutable first-import query snapshots, and pauses at 50% before
-screening/PICO. A dedup failure marks the run failed while preserving committed
-record/provenance rows for an idempotent retry. The background import route still
-returns `501 PIPELINE_NOT_READY` until that runner is connected.
-
-Machine pair evidence is immutable in the current schema. Changing an existing
-pending evaluation returns `409 PAIR_EVALUATION_CHANGED` until versioned evaluation
-storage is implemented. Historical group rows are retained and are not counted
-as active studies when they have no visible members.
-
-> **Implementation status (28 October 2026):** All core Role A backend modules are implemented and verified: Health, Reviews/Criteria, Query tree/preview/import/diff, Scenario E Zero-API Revert (`/api/queries/{id}/revert`), Duplicate-pairs review (`/api/reviews/{id}/duplicate-pairs`, `/api/reviews/{id}/pair-decisions`), Records listing & details (`/api/reviews/{id}/records`, `/api/records/{id}`), Screening decisions with mandatory exclusion reasons & conflict detection (`/api/records/{id}/screening`), PICO span curation (`/api/records/{id}/pico`), Conflict resolution by consensus (`/api/reviews/{id}/conflicts`, `/api/conflicts/{id}/resolve`), and RFC 4180 CSV Export & Audit Ledger (`/api/reviews/{id}/export.csv`, `/api/reviews/{id}/audit`). Direct supplied-record import returns `awaiting_processing` with downstream steps queued. All TypeScript types are synchronized in `frontend/src/types/api.ts`.
-
-## Shared source and engine contract alignment
-
-- Canonical `QuerySpec`: `source`, `expression`, validated `date_from`/`date_to`, `expand_synonyms` (default false), `title_abstract_only` (default false), and legacy `language`. The `synonyms` input alias remains accepted. Both search flags are persisted per query version; language is currently not applied by the adapters as a search filter.
-- Canonical `RecordIn`: `source`, `source_record_id`, `title`, `abstract`, `doi`, `pmid`, `pmcid`, structured `authors` (`full_name`, `last_name`, `initials`), `year`, `publication_date`, `journal`, `volume`, `issue`, `pages`, `language`, `pub_types`, `mesh_terms`, `keywords`, `raw`. Missing metadata remains null/empty.
-- Compatibility input aliases: `publication_year` -> `year`, `publication_types` -> `pub_types`, `mesh_headings` -> `mesh_terms`, `raw_payload` -> `raw`; author strings are converted to structured names. These old names remain read-only Python properties.
-- Internal record IDs are UUID strings. Provider IDs such as `MED:12345` stay in `source_record_id`; uniqueness is `(review_id, source, source_record_id)`. C engines support UUID strings and integer fixture IDs.
-- `to_engine_record()` maps persisted record fields and authors to the engine dataclass. Complete normalized metadata is retained under DB `raw_payload.normalized`, with original source data under `raw_payload.source_payload`.
-- Preview responses now include `warnings`, preserve zero hit counts, and return an immutable saved response on repeated calls. Source errors produce `502 SOURCE_ERROR` without freezing the draft.
-- Frontend boundary types are in `frontend/src/types/api.ts`. C's complete cache/batch keys remain defined in `MEMBER_C.md` and still require real persistence adapters.
+- `QuerySpec` uses `expand_synonyms` and `title_abstract_only`; legacy `synonyms` remains an input alias. Both flags are saved with each version. The compatibility `language` field is not currently applied by source adapters as a search filter.
+- `RecordIn` uses structured authors and the canonical fields in `app/schemas/contracts.py`. IDs such as `MED:12345` remain source IDs; internal DB IDs are UUID strings.
+- Duplicate decisions accept a pair ID or exactly two record IDs from the same review. The latest human duplicate verdict controls grouping. Opposing screening verdicts remain active until explicit consensus.
+- PICO PATCH operations append human overlays. `PicoOp` accepts optional `start_index` and `end_index` for repeated text. Corrections must match the abstract; unknown span IDs and invalid offsets fail the batch. Machine rows remain unchanged. Record detail exposes effective `pico_spans` and complete `pico_history`; span responses include `status`, `supersedes_id` and `reviewer`.
+- Machine PICO batches are fingerprinted by record content and review terms; new batches preserve human edits. Confidence ordinals stored for screening indicate strong/weak/none evidence, not calibrated probabilities.
+- `detector_rule` accepts named engine codes or literal `|`-separated keywords. Criteria without a detector require human assessment and prevent an automatic Include suggestion.
+- Empty query snapshots are explicitly marked and can be reverted without source calls. Snapshots choose an in-scope representative; full multi-version workspace history remains future work.
+- Backend wire types live in `frontend/src/types/backend.ts` and are available as `BackendApi` from `api.ts`. Frontend view models remain separate.
+- Apply migration `0003_review_integrity` before starting the updated server.
 
 # EvidenceFlow — API Contracts
 
@@ -89,7 +68,7 @@ All errors follow the `{ "error": { "code", "message", "details" } }` envelope.
     ]
   }
   ```
-- **Response `201`**: `{ "criteria_version_id": "...", "status": "criteria_updated", "run_id": "..." }`. Triggers background criteria re-evaluation.
+- **Response `201`**: Full `CriteriaVersionResponse` with its criteria. This saves a new immutable version; it does not automatically schedule re-screening. The version takes effect when processing next runs.
 
 ---
 
@@ -184,8 +163,8 @@ All errors follow the `{ "error": { "code", "message", "details" } }` envelope.
   ```
 - **Invariants**:
   - `decision == 'exclude'` **STRICTLY REQUIRES** `criterion_id` or `reason_text`. Missing reason returns **422 Unprocessable Entity**.
-  - Decision supersedes prior decisions append-only.
-  - Applies to the entire cluster group.
+  - A reviewer supersedes their own earlier decisions append-only; opposing reviewers remain active until consensus.
+  - Propagates to cluster members while preserving opposing direct human decisions and recording conflicts.
 - **Response `201`**: Created `ScreeningDecision`.
 
 ---
@@ -230,5 +209,5 @@ All errors follow the `{ "error": { "code", "message", "details" } }` envelope.
 
 ### `GET /api/reviews/{id}/export.csv`
 - **Behavior**: Generates RFC 4180 CSV of included canonical representatives.
-- **Header Alert**: If open conflicts exist in the review, row count or header row includes quarantine warning.
+- **Header Alert**: Open conflicts quarantine affected records and set HTTP header `X-Conflict-Warning: QUARANTINE_OPEN_CONFLICTS`.
 - **Response `200`**: `text/csv; charset=utf-8`.

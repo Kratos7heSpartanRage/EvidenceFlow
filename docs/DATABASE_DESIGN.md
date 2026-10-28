@@ -1,3 +1,5 @@
+> Migration `0003_review_integrity` adds append-only PICO overlays (`status`, `supersedes_id`, `reviewer`, content/algorithm fingerprints), explicit `query_versions.snapshot_captured`, and the performance indexes. See `PR_RECONCILIATION_OCT28.md`.
+
 # EvidenceFlow — Database Design Specification
 
 ## 1. Relational Architecture & Engine

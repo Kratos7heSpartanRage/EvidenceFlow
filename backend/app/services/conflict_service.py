@@ -5,12 +5,13 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.core.database import utc_now
-from app.core.errors import NotFoundError
+from app.core.errors import ConflictError, NotFoundError
 from app.models.audit import AuditEvent
 from app.models.loop import Conflict
 from app.models.record import Record
 from app.models.screening import ScreeningDecision
 from app.schemas.conflict import ConflictResolveIn
+from app.services.decision_service import validate_criterion_scope
 
 
 class ConflictService:
@@ -37,6 +38,14 @@ class ConflictService:
         if not conflict:
             raise NotFoundError(f"Conflict '{conflict_id}' was not found.")
 
+        if conflict.status == "resolved":
+            return conflict, 0
+        if conflict.reason == "pair_override_bypassed":
+            raise ConflictError(
+                "Resolve structural conflicts through duplicate pair decisions before screening consensus."
+            )
+        validate_criterion_scope(self.db, conflict.review_id, data.criterion_id)
+
         # Find all records in the conflicting cluster
         records = (
             self.db.query(Record)
@@ -61,7 +70,9 @@ class ConflictService:
             )
             .all()
         )
-        active_by_record = {d.record_id: d for d in active_decisions}
+        active_by_record = {}
+        for decision in active_decisions:
+            active_by_record.setdefault(decision.record_id, []).append(decision)
 
         # Apply consensus decision
         now = utc_now()
@@ -80,11 +91,11 @@ class ConflictService:
             self.db.add(new_decision)
             self.db.flush()
 
-            prev = active_by_record.get(r.id)
-            if prev:
+            for prev in active_by_record.get(r.id, []):
                 prev.superseded_by_id = new_decision.id
 
         # Update conflict status
+        conflict.open_fingerprint = None
         conflict.status = "resolved"
         conflict.resolved_at = now
         conflict.resolved_by = data.reviewer
