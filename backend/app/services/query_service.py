@@ -173,17 +173,24 @@ class QueryService:
             .order_by(PipelineRun.started_at.desc())
             .first()
         )
-        if existing_run and existing_run.status in ("running", "completed", "awaiting_processing"):
+        if existing_run and existing_run.status in (
+            "queued",
+            "running",
+            "completed",
+            "awaiting_processing",
+        ):
             return QueryImportResponse(run_id=existing_run.id, status=existing_run.status)
 
-        if records_in is None:
-            raise AppError(
-                "The background import processor is not connected yet.",
-                code="PIPELINE_NOT_READY",
-                status_code=501,
-            )
         if query.status == "draft":
             raise ValidationError("Preview and approve this query before importing records.")
+
+        if records_in is None:
+            # Live import: the API layer runs this queued run in a background task
+            # (see app.services.import_pipeline). A failed run can be retried.
+            from app.services.import_pipeline import ImportPipeline
+
+            run = ImportPipeline(self.db).start(query, actor=actor)
+            return QueryImportResponse(run_id=run.id, status=run.status)
         expected_source = query.source
         if any(record.source.value != expected_source for record in records_in):
             raise ValidationError("Every imported record must use the query's literature source.")
