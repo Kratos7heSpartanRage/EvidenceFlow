@@ -7,7 +7,7 @@ import type { EntityId } from '../../types/api';
 import { PreviewResponse } from '../../types/api';
 import { RunLogDrawer } from './RunLogDrawer';
 
-export function SearchBuilder() {
+export function SearchBuilder({ onViewScreening }: { onViewScreening?: () => void }) {
   const { reviewId } = useWorkspace();
   const [queries, setQueries, loadQueries] = useData(['queries'], () => api.getQueries(reviewId));
   const [selectedId, setSelectedId] = useState<EntityId | null>(null);
@@ -16,7 +16,7 @@ export function SearchBuilder() {
 
   // Form state
   const [expression, setExpression] = useState('');
-  const [source, setSource] = useState<'europe_pmc' | 'pubmed'>('europe_pmc');
+  const [source, setSource] = useState<'europe_pmc' | 'pubmed'>('pubmed');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [synonymExpansion, setSynonymExpansion] = useState(false);
@@ -30,7 +30,8 @@ export function SearchBuilder() {
   const [activeRun, setActiveRun] = useState<{ queryId: EntityId; runId: EntityId; } | null>(() => {
     try { return JSON.parse(localStorage.getItem(`evidenceflow_run_${reviewId}`) || 'null'); } catch { return null; }
   });
-  const activeRunId = (activeRun && selectedQuery && activeRun.queryId === selectedQuery.id) ? activeRun.runId : null;
+  const activeRunId = activeRun && selectedQuery && activeRun.queryId === selectedQuery.id
+    ? activeRun.runId : null;
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const handleInsertOperator = (op: string) => {
@@ -54,6 +55,15 @@ export function SearchBuilder() {
     setQueries(prev => [...prev, newQ]);
     setSelectedId(newQ.id);
     setPreviewData(null);
+    setPreviewLoading(true);
+    try {
+      const preview = await api.previewQuery(newQ.id);
+      setPreviewData(preview);
+      setQueries(prev => prev.map(q => q.id === newQ.id
+        ? { ...q, status: 'previewed', hit_count: preview.hit_count } : q));
+    } finally {
+      setPreviewLoading(false);
+    }
   });
 
   const handlePreview = useAction(async () => {
@@ -233,7 +243,7 @@ export function SearchBuilder() {
                 type="submit"
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold shadow transition"
               >
-                <span>Save as Version v{queries.length + 1}</span>
+              <span>{previewLoading ? 'Searching live source…' : `Search live & preview as v${queries.length + 1}`}</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -384,6 +394,7 @@ export function SearchBuilder() {
         runId={activeRunId}
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
+        onViewScreening={onViewScreening}
       />
     </div>
   );

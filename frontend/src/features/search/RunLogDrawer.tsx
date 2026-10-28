@@ -9,6 +9,7 @@ interface RunLogDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onComplete?: () => void;
+  onViewScreening?: () => void;
 }
 
 const STEP_ICONS: Record<string, React.ElementType> = {
@@ -21,7 +22,7 @@ const STEP_ICONS: Record<string, React.ElementType> = {
   diff: Clock
 };
 
-export function RunLogDrawer({ runId, isOpen, onClose, onComplete }: RunLogDrawerProps) {
+export function RunLogDrawer({ runId, isOpen, onClose, onComplete, onViewScreening }: RunLogDrawerProps) {
   const client = useQueryClient();
   const { data: run, error, refetch } = useQuery({
     queryKey: ['run', runId], queryFn: () => api.getRun(runId!), enabled: !!runId && isOpen,
@@ -132,6 +133,11 @@ export function RunLogDrawer({ runId, isOpen, onClose, onComplete }: RunLogDrawe
 
       {/* Drawer Footer */}
       <div className="p-4 border-t border-slate-800 bg-slate-950/60 text-center">
+        {run?.status === 'completed' && onViewScreening && (
+          <button onClick={onViewScreening} className="w-full mb-2 py-2 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">
+            View imported papers in Screening Queue
+          </button>
+        )}
         <button
           onClick={onClose}
           className="w-full py-2 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition"

@@ -6,6 +6,7 @@ import {
   GitCompare,
   GitMerge,
   History,
+  Lightbulb,
   Search,
   Tag
 } from 'lucide-react';
@@ -20,7 +21,8 @@ export type NavTab =
   | 'history'
   | 'conflicts'
   | 'audit'
-  | 'export';
+  | 'export'
+  | 'intelligence';
 
 interface SidebarProps {
   activeTab: NavTab;
@@ -60,6 +62,7 @@ export function Sidebar({ activeTab, onSelectTab, stats }: SidebarProps) {
         badgeColor: 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
       },
       { id: 'pico', step: 'Step 6', label: 'PICO Extraction', icon: Tag },
+      { id: 'intelligence', step: 'Innovation', label: 'Review Intelligence', icon: Lightbulb },
       { id: 'history', step: 'Level 2', label: 'Query Evolution & Diff', icon: GitCompare },
       {
         id: 'conflicts',

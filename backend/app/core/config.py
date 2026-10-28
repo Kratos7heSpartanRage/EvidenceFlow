@@ -16,6 +16,15 @@ class Settings(BaseSettings):
     )
 
     DATABASE_URL: str = "sqlite:///./evidenceflow.db"
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def use_psycopg_for_postgres(cls, value: str) -> str:
+        if value.startswith("postgres://"):
+            return "postgresql+psycopg://" + value[len("postgres://"):]
+        if value.startswith("postgresql://"):
+            return "postgresql+psycopg://" + value[len("postgresql://"):]
+        return value
     HTTP_TIMEOUT: int = 20
     IMPORT_CAP: int = 500
 
@@ -27,13 +36,6 @@ class Settings(BaseSettings):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
     ENVIRONMENT: str = "development"
-
-    @field_validator("DATABASE_URL", mode="before")
-    @classmethod
-    def normalize_database_url(cls, v: str) -> str:
-        if isinstance(v, str) and v.startswith("postgres://"):
-            return v.replace("postgres://", "postgresql://", 1)
-        return v
 
 
 settings = Settings()

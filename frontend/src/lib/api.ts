@@ -161,6 +161,15 @@ async function recordPages(reviewId: EntityId, params: RecordFilters = {}): Prom
   return { ...response, items, total_pages: Math.ceil(response.total / response.page_size) };
 }
 export const api = {
+  getRecheckCandidates(reviewId: EntityId): Promise<Array<{
+    record_id: string; title: string; original_reason: string; old_criterion: string;
+    new_criterion: string | null; matched_new_terms: string[]; evidence_excerpt: string;
+    reviewer: string; reason: string;
+  }>> { return request(`/reviews/${id(reviewId)}/recheck-candidates`); },
+  getStudyFamilies(reviewId: EntityId): Promise<Array<{
+    id: string; relationship: string; evidence: string;
+    records: Array<{ id: string; title: string; source: string; pmid: string | null }>;
+  }>> { return request(`/reviews/${id(reviewId)}/study-families`); },
   async getHealth() {
     const health = await request<{ status: string; database: string; }>('/health');
     if (health.database === 'disconnected') throw new ApiError('Backend database is unavailable. Apply migrations and retry.', 'DATABASE_ERROR');

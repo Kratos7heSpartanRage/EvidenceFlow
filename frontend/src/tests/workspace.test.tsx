@@ -22,6 +22,7 @@ describe('Workspace connectivity', () => {
         const data = JSON.parse(String(options.body)); reviews = [review('created-uuid', data.title)]; return Response.json(reviews[0]);
       }
       if (url === '/api/reviews') return Response.json(reviews);
+      if (url === '/api/reviews/created-uuid/queries') return Response.json([]);
       if (url.includes('duplicate-pairs')) return Response.json([]);
       if (url === '/api/reviews/created-uuid') return Response.json(reviews[0]);
       throw new Error(`Unexpected request: ${url}`);
@@ -37,6 +38,8 @@ describe('Workspace connectivity', () => {
     expect(screen.getByText('0%')).toBeInTheDocument();
     expect(localStorage.getItem('evidenceflow_review')).toBe('created-uuid');
     expect(fetcher.mock.calls.some(([url]) => url.includes('/reviews/1'))).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Search Literature' }));
+    expect(await screen.findByRole('heading', { name: 'Literature Database Query Builder' })).toBeInTheDocument();
   });
   it('switches to a different stored review without reusing the first review data', async () => {
     const first = review('first-uuid', 'First protocol'), second = review('second-uuid', 'Second protocol');
@@ -58,14 +61,17 @@ describe('Workspace connectivity', () => {
   });
   it('polls queued import runs until completion and stops polling', async () => {
     let calls = 0;
+    const onViewScreening = vi.fn();
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({
       id: 'run-uuid', review_id: 'review-uuid', query_version_id: 'query-uuid', run_type: 'import',
       status: ++calls === 1 ? 'queued' : 'completed', progress_percent: calls === 1 ? 0 : 100,
       started_at: '2026-10-28T10:00:00Z', completed_at: null, steps: []
     })));
-    render(<Harness><RunLogDrawer runId="run-uuid" isOpen onClose={() => undefined} /></Harness>);
+    render(<Harness><RunLogDrawer runId="run-uuid" isOpen onClose={() => undefined} onViewScreening={onViewScreening} /></Harness>);
     expect(await screen.findByText('queued')).toBeInTheDocument();
     expect(await screen.findByText('completed', {}, { timeout: 2500 })).toBeInTheDocument();
     await waitFor(() => expect(calls).toBe(2));
+    fireEvent.click(screen.getByRole('button', { name: 'View imported papers in Screening Queue' }));
+    expect(onViewScreening).toHaveBeenCalledOnce();
   });
 });

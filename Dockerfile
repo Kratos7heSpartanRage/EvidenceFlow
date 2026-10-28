@@ -1,27 +1,17 @@
-FROM python:3.11-slim
+FROM node:20-alpine AS frontend
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
 
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy backend requirements and install
-COPY backend/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application files
-COPY backend ./backend
-COPY docs ./docs
-
-ENV PYTHONPATH=/app/backend
-ENV PORT=8000
-
-EXPOSE 8000
-
-# Run migrations and start uvicorn server
-CMD sh -c "python -m alembic -c backend/alembic.ini upgrade head && uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port ${PORT}"
-
+FROM python:3.12-slim
+WORKDIR /app/backend
+COPY backend/pyproject.toml backend/README.md ./
+COPY backend/app ./app
+COPY backend/alembic ./alembic
+COPY backend/alembic.ini ./alembic.ini
+RUN pip install --no-cache-dir .
+COPY --from=frontend /app/frontend/dist /app/frontend/dist
+ENV ENVIRONMENT=production PORT=10000
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
