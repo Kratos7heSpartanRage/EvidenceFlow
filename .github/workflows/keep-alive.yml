@@ -1,0 +1,23 @@
+name: Keep Render Backend Alive
+
+on:
+  schedule:
+    # Run every 10 minutes to prevent Render free-tier sleep (inactivity timeout is 15 minutes)
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allows manual triggering from the GitHub Actions tab
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Backend Health Endpoint
+        run: |
+          echo "Pinging EvidenceFlow Backend at https://evidenceflow-hd3d.onrender.com/api/health"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://evidenceflow-hd3d.onrender.com/api/health")
+          echo "Response status code: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "Backend is awake and responding!"
+          else
+            echo "Warning: Response code was $HTTP_STATUS"
+          fi
+
