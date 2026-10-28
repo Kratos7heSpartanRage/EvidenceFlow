@@ -2,6 +2,8 @@
 
 **Team next steps:** [Blueprint for Members A, B, C and D](docs/TEAM_BLUEPRINT.md) — priorities, ownership, handoffs and release checks.
 
+**Checkpoint preparation:** [Manas's speaking notes and Q&A](docs/CHECKPOINT_PREP.md), [measured algorithm evaluation](docs/evaluation/checkpoint/EVALUATION_REPORT.md), and [PPT content handoff](docs/evaluation/checkpoint/PPT_HANDOFF.md). The external-data rule baseline has substantial quality limits; deployment is a separate verification step. [Reproduce the benchmark](backend/evaluation/README.md).
+
 > **An auditable, deterministic systematic literature review platform with an evolutionary query-change loop.**
 
 EvidenceFlow structures the complete systematic review synthesis pipeline:

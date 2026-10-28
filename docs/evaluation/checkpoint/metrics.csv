@@ -1,0 +1,25 @@
+stage,dataset,channel,metric,value_fraction,n
+screening,Donners_2021,strict Include,precision,0.08695652173913043,258
+screening,Donners_2021,strict Include,recall,0.8,258
+screening,Donners_2021,strict Include,f1,0.1568627450980392,258
+screening,Meijboom_2021,strict Include,precision,0.0611439842209073,882
+screening,Meijboom_2021,strict Include,recall,0.8378378378378378,882
+screening,Meijboom_2021,strict Include,f1,0.11397058823529412,882
+screening,van_der_Valk_2021,strict Include,precision,0.4318181818181818,725
+screening,van_der_Valk_2021,strict Include,recall,0.42696629213483145,725
+screening,van_der_Valk_2021,strict Include,f1,0.4293785310734463,725
+screening,pooled,strict Include,precision,0.11050477489768076,1865
+screening,pooled,strict Include,recall,0.574468085106383,1865
+screening,pooled,strict Include,f1,0.1853546910755149,1865
+pico,EBM-NLP expert test,P,token_precision,0.6163886874546773,186
+pico,EBM-NLP expert test,P,token_recall,0.17978003384094754,186
+pico,EBM-NLP expert test,P,token_f1,0.27836908465695104,186
+pico,EBM-NLP expert test,I,token_precision,0.1450098814229249,186
+pico,EBM-NLP expert test,I,token_recall,0.15632490013315578,186
+pico,EBM-NLP expert test,I,token_f1,0.1504549532231193,186
+pico,EBM-NLP expert test,O,token_precision,0.3505654281098546,186
+pico,EBM-NLP expert test,O,token_recall,0.026996765364518536,186
+pico,EBM-NLP expert test,O,token_f1,0.050132840475915444,186
+pico,EBM-NLP expert test,micro,token_precision,0.27356930201786306,186
+pico,EBM-NLP expert test,micro,token_recall,0.10011500514496702,186
+pico,EBM-NLP expert test,micro,token_f1,0.14658572251517704,186

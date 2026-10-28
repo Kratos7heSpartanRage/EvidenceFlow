@@ -1,0 +1,44 @@
+{
+  "baseline_commit": "69a4f637b12303b6b7af21b5ceb9e52206206b9a",
+  "backend": [
+    {
+      "name": "backend_tests",
+      "exit_code": 0,
+      "summary": "255 passed, 8 skipped, 15 warnings, 74 subtests passed in 12.52s"
+    },
+    {
+      "name": "backend_lint",
+      "exit_code": 0,
+      "summary": "All checks passed!"
+    },
+    {
+      "name": "backend_format",
+      "exit_code": 0,
+      "summary": "112 files already formatted"
+    }
+  ],
+  "frontend": [
+    {
+      "name": "frontend_tests",
+      "exit_code": 0,
+      "summary": "20 tests passed"
+    },
+    {
+      "name": "frontend_lint",
+      "exit_code": 0,
+      "summary": "passed"
+    },
+    {
+      "name": "frontend_types",
+      "exit_code": 0,
+      "summary": "passed"
+    },
+    {
+      "name": "frontend_build",
+      "exit_code": 0,
+      "summary": "production build passed"
+    }
+  ],
+  "scope": "Fresh software checks on the evaluation branch; deployment and live literature checks were not run.",
+  "production_algorithms_changed": false
+}
