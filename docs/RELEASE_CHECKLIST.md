@@ -1,5 +1,7 @@
 # EvidenceFlow — Release & Verification Checklist (Hours 60–72)
 
+> Historical draft, not a current release sign-off. Some checked items, counts and commands below are stale; criteria edits do not yet automatically schedule re-screening. Use the current [team blueprint](TEAM_BLUEPRINT.md) and [startup/verification guide](LIVE_FRONTEND_INTEGRATION.md). A/B must reconcile this checklist before release.
+
 ## 1. Clean-Clone & Verification Instructions
 
 ### Step 1: Clone and Environment Setup

@@ -1,5 +1,7 @@
 # EvidenceFlow
 
+**Team next steps:** [Blueprint for Members A, B, C and D](docs/TEAM_BLUEPRINT.md) — priorities, ownership, handoffs and release checks.
+
 > **An auditable, deterministic systematic literature review platform with an evolutionary query-change loop.**
 
 EvidenceFlow structures the complete systematic review synthesis pipeline:

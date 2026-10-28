@@ -1,4 +1,6 @@
 # EvidenceFlow: Official 5-Minute Hackathon Demo Script
+
+> Historical draft requiring D's rewrite. The Reset Demo button, fixed hit counts/record IDs and seven-step mock run below are not the current connected workflow. Follow [the team blueprint](TEAM_BLUEPRINT.md) and [verified integration notes](LIVE_FRONTEND_INTEGRATION.md); rehearse using observed API data.
 **Team:** EvidenceFlow Team (Member D: Frontend & Demo Presenter)  
 **Hackathon Target:** Mini-Rayyan (72 Hours)  
 **Key Pitch:** *?Change your search as often as you like. EvidenceFlow shows exactly what changed and never loses a decision you made.?*
