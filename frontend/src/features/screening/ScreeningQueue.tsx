@@ -1,32 +1,28 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { api, getActiveReviewer } from '../../lib/api';
-import { LiteratureRecord, Criterion } from '../../types/api';
-import { MachineSuggestionBadge, HumanDecisionBadge } from '../../components/ui/Badge';
-import { ReasonModal } from '../../components/ui/ReasonModal';
-import { KeyboardShortcutsModal } from '../../components/ui/KeyboardShortcutsModal';
 import {
-  FileSearch,
+  AlertTriangle,
   CheckCircle,
-  XCircle,
-  HelpCircle,
-  ChevronRight,
   ChevronLeft,
-  Search,
-  Users,
-  Calendar,
-  BookOpen,
+  ChevronRight,
+  HelpCircle,
   Keyboard,
-  ExternalLink,
+  Search,
   ShieldCheck,
-  Tag,
-  AlertTriangle
+  XCircle
 } from 'lucide-react';
+import { useCallback, useDeferredValue, useEffect, useState } from 'react';
+import { HumanDecisionBadge, MachineSuggestionBadge } from '../../components/ui/Badge';
+import { KeyboardShortcutsModal } from '../../components/ui/KeyboardShortcutsModal';
+import { ReasonModal } from '../../components/ui/ReasonModal';
+import { api, getActiveReviewer } from '../../lib/api';
+import { useAction, useData, useWorkspace } from '../../lib/workspace';
+import type { EntityId } from '../../types/api';
 
 export function ScreeningQueue() {
-  const [records, setRecords] = useState<LiteratureRecord[]>([]);
-  const [criteria, setCriteria] = useState<Criterion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedRecordId, setSelectedRecordId] = useState<number | null>(null);
+  const { reviewId } = useWorkspace();
+
+
+
+  const [selectedRecordId, setSelectedRecordId] = useState<EntityId | null>(null);
 
   // Filters
   const [filterDecision, setFilterDecision] = useState<string>('all');
@@ -38,37 +34,17 @@ export function ScreeningQueue() {
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const criteriaVer = await api.getCriteria(1);
-      setCriteria(criteriaVer.criteria);
-
-      const params: any = {
-        show_hidden: showHiddenDuplicates
-      };
-      if (filterDecision !== 'all') {
-        params.decision = filterDecision;
-      }
-      if (searchQuery.trim()) {
-        params.q = searchQuery.trim();
-      }
-
-      const res = await api.getRecords(1, params);
-      setRecords(res.items);
-      if (res.items.length > 0 && (!selectedRecordId || !res.items.some((r: LiteratureRecord) => r.id === selectedRecordId))) {
-        setSelectedRecordId(res.items[0].id);
-      }
-    } finally {
-      setLoading(false);
-    }
+  const [criteriaVer] = useData(['criteria'], () => api.getCriteria(reviewId));
+  const criteria = criteriaVer.criteria;
+  const deferredSearch = useDeferredValue(searchQuery);
+  const params = {
+    show_hidden: showHiddenDuplicates, decision: filterDecision === 'all' ? undefined : filterDecision,
+    q: deferredSearch.trim() || undefined
   };
-
-  useEffect(() => {
-    loadData();
-  }, [filterDecision, showHiddenDuplicates]);
-
-  const activeRecord = records.find(r => r.id === selectedRecordId) || records[0];
+  const [result, , loadData] = useData(['records', params], () => api.getRecords(reviewId, params));
+  const records = result.items;
+  const summary = records.find(r => r.id === selectedRecordId) || records[0];
+  const [activeRecord] = useData(['record', summary?.id], () => summary ? api.getRecord(summary.id) : Promise.resolve(null));
 
   // Navigate next/previous
   const handleNavigate = useCallback((direction: 'next' | 'prev') => {
@@ -86,7 +62,7 @@ export function ScreeningQueue() {
   }, [activeRecord, records]);
 
   // Screening decision handlers
-  const handleDecision = async (decision: 'include' | 'exclude' | 'maybe', reasonData?: { criterion_id?: number | null; reason_text: string; note?: string }) => {
+  const handleDecision = useAction(async (decision: 'include' | 'exclude' | 'maybe', reasonData?: { criterion_id?: EntityId | null; reason_text: string; note?: string; }) => {
     if (!activeRecord) return;
 
     if (decision === 'exclude' && !reasonData) {
@@ -108,17 +84,16 @@ export function ScreeningQueue() {
       // Reload and advance to next record
       await loadData();
       handleNavigate('next');
-    } catch (err: any) {
-      alert(`Error submitting decision: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
-  };
+  });
 
   // Keyboard hotkeys: I, E, M, N, P, ?
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if user is typing in an input or textarea
+      if (submitting || isReasonModalOpen || isShortcutsModalOpen) return;
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) {
         return;
       }
@@ -146,7 +121,7 @@ export function ScreeningQueue() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleDecision, handleNavigate]);
+  }, [handleDecision, handleNavigate, submitting, isReasonModalOpen, isShortcutsModalOpen]);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -189,11 +164,10 @@ export function ScreeningQueue() {
             <button
               key={tab.id}
               onClick={() => setFilterDecision(tab.id)}
-              className={`px-3 py-1.5 rounded-md font-medium whitespace-nowrap transition ${
-                filterDecision === tab.id
+              className={`px-3 py-1.5 rounded-md font-medium whitespace-nowrap transition ${filterDecision === tab.id
                   ? 'bg-brand-600 text-white shadow'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -206,10 +180,10 @@ export function ScreeningQueue() {
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Filter title, author, keyword..."
+              placeholder="Filter title or abstract..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && loadData()}
+
               className="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-500 text-xs focus:outline-none focus:border-brand-500"
             />
           </div>
@@ -221,13 +195,13 @@ export function ScreeningQueue() {
               onChange={e => setShowHiddenDuplicates(e.target.checked)}
               className="rounded border-slate-700 text-brand-600 bg-slate-900 w-3.5 h-3.5"
             />
-            <span>Show Hidden Duplicates</span>
+            <span>Show duplicate members</span>
           </label>
         </div>
       </div>
 
       {/* Main Split-Pane Layout */}
-      {records.length === 0 ? (
+      {!activeRecord ? (
         <div className="p-12 text-center rounded-xl bg-slate-900/40 border border-slate-800 text-slate-400 text-sm">
           No records match the current screening criteria and search filter.
         </div>
@@ -241,11 +215,10 @@ export function ScreeningQueue() {
                 <button
                   key={r.id}
                   onClick={() => setSelectedRecordId(r.id)}
-                  className={`w-full text-left p-3.5 rounded-xl border text-xs transition-all space-y-2 ${
-                    isSelected
+                  className={`w-full text-left p-3.5 rounded-xl border text-xs transition-all space-y-2 ${isSelected
                       ? 'bg-slate-800/90 border-brand-500/60 shadow-lg'
                       : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800/40'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between gap-1">
                     <span className="font-mono text-[10px] text-slate-400">

@@ -14,7 +14,7 @@ class CriterionIn(BaseModel):
     )
     field_target: str | None = Field(default=None, description="'title', 'abstract', 'mesh', etc.")
     detector_rule: str | None = Field(
-        default=None, description="Regex or pattern for machine suggestions"
+        default=None, description="Named engine detector or literal keywords separated by |"
     )
 
 

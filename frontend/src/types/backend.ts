@@ -1,6 +1,54 @@
 /** Wire-format API types. UI view models live in api.ts; keep the namespaces distinct. */
 export type LiteratureSource = "europe_pmc" | "pubmed";
 
+export interface CriterionInput {
+  type: 'inclusion' | 'exclusion';
+  label: string;
+  description: string;
+  field_target?: string | null;
+  detector_rule?: string | null;
+}
+export interface Criterion extends CriterionInput { id: string; criteria_version_id: string; }
+export interface CriteriaVersion {
+  id: string; review_id: string; version_number: number; created_at: string; criteria: Criterion[];
+}
+export interface ReviewCounts {
+  total_records: number; unique_studies: number; screened_included: number;
+  screened_excluded: number; screened_maybe: number; unscreened: number; open_conflicts: number;
+}
+export interface Review {
+  id: string; title: string; question: string; pico?: Record<string, string>;
+  created_at: string; updated_at: string; counts: ReviewCounts;
+  active_criteria_version?: CriteriaVersion | null; active_query_id?: string | null;
+}
+export interface QueryVersion {
+  id: string; review_id: string; parent_id: string | null; version_number: number;
+  label: string; expression: string; source: LiteratureSource;
+  expand_synonyms: boolean; title_abstract_only: boolean;
+  date_from?: string | null; date_to?: string | null; status: string;
+  hit_count: number | null; imported_count: number | null; created_at: string; frozen_at?: string | null;
+}
+export interface PipelineRun {
+  id: string; review_id: string; query_version_id: string | null; run_type: string;
+  status: 'queued' | 'running' | 'completed' | 'failed'; progress_percent: number;
+  current_step: string | null; error_message: string | null; started_at: string; completed_at: string | null;
+  steps: Array<{
+    id: string; run_id: string; step_order: number; name: string;
+    status: PipelineRun['status']; started_at: string | null; completed_at: string | null; message: string | null
+   }>;
+}
+export interface DuplicatePair {
+  id: string; review_id: string; record_a_id: string; record_b_id: string;
+  record_a: RecordSummary | null; record_b: RecordSummary | null;
+  similarity_score: number; tier: string; match_reasons: string[]; status: string; created_at: string;
+  decisions: Array<{ id: string; decision: 'confirm' | 'reject'; reviewer_name: string; note: string | null; created_at: string; }>;
+}
+export interface QueryDiff {
+  query_v1_id: string; query_v2_id: string; new_records_count: number;
+  retained_records_count: number; dropped_records_count: number;
+  already_screened_retained_count: number; potential_conflicts_count: number;
+}
+
 export interface Author {
   full_name: string;
   last_name?: string | null;
@@ -38,8 +86,8 @@ export interface QueryPreview {
 }
 
 export type PairDecisionTarget =
-  | { duplicate_pair_id: string; record_a_id?: never; record_b_id?: never }
-  | { duplicate_pair_id?: never; record_a_id: string; record_b_id: string };
+  | { duplicate_pair_id: string; record_a_id?: never; record_b_id?: never; }
+  | { duplicate_pair_id?: never; record_a_id: string; record_b_id: string; };
 
 export type PairDecisionInput = PairDecisionTarget & {
   decision: "confirm" | "reject";
@@ -115,6 +163,7 @@ export interface PicoOp {
 
 export interface PicoPatchInput {
   ops: PicoOp[];
+  reviewer?: string;
 }
 
 export interface PicoPatchResult {
@@ -170,7 +219,12 @@ export interface RecordItem {
   group_id?: string | null;
   is_representative: boolean;
   is_hidden: boolean;
-  decision?: ScreeningDecision | null;
+  decision?: Omit<ScreeningDecision, 'record_id' | 'group_id'> | null;
+  suggestion?: {
+    id: string; suggested_decision: 'include' | 'exclude' | 'maybe'; confidence: number;
+    matched_criterion_id: string | null; matched_criterion_label: string | null; algorithm_version: string | null;
+    evidence_snippets?: Array<{ code: string; source?: string; field?: string; matched?: string[]; explanation?: string; strength?: string }>;
+  } | null;
 }
 
 export interface RecordDetail extends RecordItem {
@@ -178,7 +232,7 @@ export interface RecordDetail extends RecordItem {
   mesh_headings: string[];
   publication_types: string[];
   language?: string | null;
-  decisions: ScreeningDecision[];
+  decisions: Array<Omit<ScreeningDecision, 'record_id' | 'group_id'>>;
   pico_spans: PicoSpan[];
   pico_history?: PicoSpan[];
   cluster_members: RecordItem[];

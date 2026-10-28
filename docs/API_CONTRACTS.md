@@ -1,3 +1,5 @@
+> **Live frontend update:** All workspace views now call the backend through `frontend/src/lib/api.ts`; reviews are selected by UUID and can be created from an empty database. See `LIVE_FRONTEND_INTEGRATION.md` for setup, validation and remaining limits. Runtime sample-data fallback has been removed.
+
 > **Implemented backend status, 28 October 2026:** Approved background imports now run fetch/store/dedup/screen/PICO. Records, screening, PICO curation, conflicts, query revert, CSV export, and audit endpoints are present. See `PR_RECONCILIATION_OCT28.md` for verified behavior and remaining limits.
 
 ## Current integration details
@@ -5,7 +7,7 @@
 - `QuerySpec` uses `expand_synonyms` and `title_abstract_only`; legacy `synonyms` remains an input alias. Both flags are saved with each version. The compatibility `language` field is not currently applied by source adapters as a search filter.
 - `RecordIn` uses structured authors and the canonical fields in `app/schemas/contracts.py`. IDs such as `MED:12345` remain source IDs; internal DB IDs are UUID strings.
 - Duplicate decisions accept a pair ID or exactly two record IDs from the same review. The latest human duplicate verdict controls grouping. Opposing screening verdicts remain active until explicit consensus.
-- PICO PATCH operations append human overlays. `PicoOp` accepts optional `start_index` and `end_index` for repeated text. Corrections must match the abstract; unknown span IDs and invalid offsets fail the batch. Machine rows remain unchanged. Record detail exposes effective `pico_spans` and complete `pico_history`; span responses include `status`, `supersedes_id` and `reviewer`.
+- PICO PATCH operations append human overlays. The batch accepts optional `reviewer` (default `Human Reviewer`) for overlay and audit attribution. `PicoOp` accepts optional `start_index` and `end_index` for repeated text. Corrections must match the abstract; unknown span IDs and invalid offsets fail the batch. Machine rows remain unchanged. Record detail exposes effective `pico_spans` and complete `pico_history`; screening suggestions include stored `evidence_snippets`; decision summaries include nullable `superseded_by_id` so active opposing decisions can be shown; span responses include `status`, `supersedes_id` and `reviewer`.
 - Machine PICO batches are fingerprinted by record content and review terms; new batches preserve human edits. Confidence ordinals stored for screening indicate strong/weak/none evidence, not calibrated probabilities.
 - `detector_rule` accepts named engine codes or literal `|`-separated keywords. Criteria without a detector require human assessment and prevent an automatic Include suggestion.
 - Empty query snapshots are explicitly marked and can be reverted without source calls. Snapshots choose an in-scope representative; full multi-version workspace history remains future work.

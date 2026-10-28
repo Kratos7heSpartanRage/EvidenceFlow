@@ -1,6 +1,5 @@
-import React from 'react';
+import { ArrowLeft, ArrowRight, CheckCircle, Command, HelpCircle, XCircle } from 'lucide-react';
 import { Modal } from './Modal';
-import { Command, CheckCircle, XCircle, HelpCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface KeyboardShortcutsModalProps {
   isOpen: boolean;

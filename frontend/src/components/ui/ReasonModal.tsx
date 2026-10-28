@@ -1,18 +1,19 @@
-import React, { useState } from 'react';
-import { Modal } from './Modal';
-import { Criterion } from '../../types/api';
 import { AlertCircle, Ban, Check } from 'lucide-react';
+import { useState } from 'react';
+import type { EntityId } from '../../types/api';
+import { Criterion } from '../../types/api';
+import { Modal } from './Modal';
 
 interface ReasonModalProps {
   isOpen: boolean;
   onClose: () => void;
   criteria: Criterion[];
   recordTitle?: string;
-  onConfirm: (data: { criterion_id?: number | null; reason_text: string; note?: string }) => void;
+  onConfirm: (data: { criterion_id?: EntityId | null; reason_text: string; note?: string; }) => void;
 }
 
 export function ReasonModal({ isOpen, onClose, criteria, recordTitle, onConfirm }: ReasonModalProps) {
-  const [selectedCriterionId, setSelectedCriterionId] = useState<number | null>(null);
+  const [selectedCriterionId, setSelectedCriterionId] = useState<EntityId | null>(null);
   const [customReason, setCustomReason] = useState('');
   const [note, setNote] = useState('');
 
@@ -70,11 +71,10 @@ export function ReasonModal({ isOpen, onClose, criteria, recordTitle, onConfirm 
                 key={c.id}
                 type="button"
                 onClick={() => setSelectedCriterionId(isSelected ? null : c.id)}
-                className={`w-full text-left p-2.5 rounded-lg border text-xs transition-all flex items-start justify-between gap-2 ${
-                  isSelected
+                className={`w-full text-left p-2.5 rounded-lg border text-xs transition-all flex items-start justify-between gap-2 ${isSelected
                     ? 'bg-rose-950/40 border-rose-500/60 text-rose-200'
                     : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800 hover:border-slate-700'
-                }`}
+                  }`}
               >
                 <div>
                   <div className="font-semibold text-slate-100 flex items-center gap-1.5">
@@ -138,11 +138,10 @@ export function ReasonModal({ isOpen, onClose, criteria, recordTitle, onConfirm 
           type="button"
           disabled={!isValid}
           onClick={handleConfirm}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow ${
-            isValid
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow ${isValid
               ? 'bg-rose-600 hover:bg-rose-500 text-white cursor-pointer shadow-rose-950/50'
               : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-          }`}
+            }`}
         >
           <Ban className="w-3.5 h-3.5" />
           <span>Confirm Exclusion</span>

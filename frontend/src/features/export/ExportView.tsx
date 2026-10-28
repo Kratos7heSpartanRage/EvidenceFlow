@@ -1,32 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import { Download, FileSpreadsheet, ShieldAlert } from 'lucide-react';
 import { api } from '../../lib/api';
-import { LiteratureRecord, PicoAnnotation, Conflict } from '../../types/api';
-import { Download, FileSpreadsheet, ShieldAlert, CheckCircle, ExternalLink, Sparkles } from 'lucide-react';
+import { useAction, useData, useWorkspace } from '../../lib/workspace';
 
 export function ExportView() {
-  const [records, setRecords] = useState<LiteratureRecord[]>([]);
-  const [annotations, setAnnotations] = useState<PicoAnnotation[]>([]);
-  const [conflicts, setConflicts] = useState<Conflict[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { reviewId } = useWorkspace();
+  const [data] = useData(['export'], async () => {
+    const [res, conflicts] = await Promise.all([api.getRecords(reviewId, { decision: 'include' }), api.getConflicts(reviewId)]);
+    const blocked = new Set(conflicts.filter(c => c.status === 'open').flatMap(c => c.record_ids_json));
+    const records = await Promise.all(res.items.filter(r => !blocked.has(r.id)).map(r => api.getRecord(r.id)));
+    return { records, conflicts };
+  });
+  const { records, conflicts } = data;
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const res = await api.getRecords(1, { decision: 'include', show_hidden: false });
-      setRecords(res.items);
-      const confs = await api.getConflicts(1);
-      setConflicts(confs);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const handleDownloadCsv = async () => {
-    const csvContent = await api.exportCsv(1);
+  const handleDownloadCsv = useAction(async () => {
+    const csvContent = await api.exportCsv(reviewId);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -35,7 +22,8 @@ export function ExportView() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
+    URL.revokeObjectURL(url);
+  });
 
   const openConflictsCount = conflicts.filter(c => c.status === 'open').length;
 
@@ -106,6 +94,7 @@ export function ExportView() {
                   <th className="py-2.5 px-3">Year</th>
                   <th className="py-2.5 px-3">Identifiers</th>
                   <th className="py-2.5 px-3">Decision</th>
+                  <th className="py-2.5 px-3">PICO evidence</th>
                   <th className="py-2.5 px-4 min-w-[140px]">Reviewer Rationale</th>
                 </tr>
               </thead>
@@ -128,6 +117,7 @@ export function ExportView() {
                         {r.current_decision?.decision || 'Include'}
                       </span>
                     </td>
+                    <td className="py-3 px-3 text-xs">{r.pico_annotations?.map(p => `${p.label}: ${p.text}`).join("; ") || "No spans detected"}</td>
                     <td className="py-3 px-4 text-slate-300 text-[11px] leading-relaxed italic">
                       "{r.current_decision?.reason_text || 'Standard protocol inclusion'}"
                       <div className="text-[10px] text-slate-500 font-mono not-italic mt-0.5">

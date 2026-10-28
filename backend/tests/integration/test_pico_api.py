@@ -110,11 +110,12 @@ def test_pico_curation_pipeline(client):
     patch_res = client.patch(
         f"/api/records/{rec_id}/pico",
         json={
+            "reviewer": "Member C",
             "ops": [
                 {"op": "confirm", "span_id": p_id},
                 {"op": "correct", "span_id": i_id, "text": "dapagliflozin 10mg"},
                 {"op": "reject", "span_id": noise_id},
-            ]
+            ],
         },
     )
     assert patch_res.status_code == 200
@@ -129,6 +130,7 @@ def test_pico_curation_pipeline(client):
         assert p_span.origin == "machine"
         confirmed = db.query(PICOAnnotation).filter_by(supersedes_id=p_id).one()
         assert confirmed.is_confirmed is True and confirmed.origin == "human"
+        assert confirmed.reviewer == "Member C"
 
         old_i = db.query(PICOAnnotation).filter(PICOAnnotation.id == i_id).first()
         assert old_i.is_confirmed is False
@@ -158,6 +160,7 @@ def test_pico_curation_pipeline(client):
         )
         assert audit is not None
         assert audit.target_id == rec_id
+        assert audit.actor == "Member C"
         assert audit.after_state["applied_count"] == 3
     finally:
         db.close()

@@ -1,8 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { HumanDecisionBadge, MachineSuggestionBadge } from '../components/ui/Badge';
 import { ReasonModal } from '../components/ui/ReasonModal';
-import { MachineSuggestionBadge, HumanDecisionBadge } from '../components/ui/Badge';
 import { mockCriteriaVersion } from '../mocks/mockData';
 
 describe('Screening Exclusion Validation (Client-Side Enforcement)', () => {

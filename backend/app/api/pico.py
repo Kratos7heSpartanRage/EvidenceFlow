@@ -23,4 +23,4 @@ def patch_pico_annotations(
 ):
     """Applies human confirmations, corrections, and rejections to PICO entity spans for a record."""
     service = PicoAnnotationService(db)
-    return service.patch_pico_annotations(record_id, payload.ops)
+    return service.patch_pico_annotations(record_id, payload.ops, actor=payload.reviewer)

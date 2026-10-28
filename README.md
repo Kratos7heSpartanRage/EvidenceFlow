@@ -7,7 +7,7 @@ $$\text{Review Protocol} \longrightarrow \text{Query Trees} \longrightarrow \tex
 
 EvidenceFlow solves the fundamental challenge of systematic reviews: **How to iterate on literature search queries without losing human reviewer screening decisions, duplicate pair resolutions, or audit history.**
 
-> **Latest integration:** See [28 October reconciliation](docs/PR_RECONCILIATION_OCT28.md) for tested behavior, migration requirements, and remaining UI/loop limits. Older C drafts are preserved in [the archive](docs/archive/MEMBER_C_REPORT.md).
+> **Latest integration:** The frontend now connects to the backend for review creation, search/import, deduplication, screening, PICO curation, conflicts, query history, audit and CSV export. Start with the [live frontend guide](docs/LIVE_FRONTEND_INTEGRATION.md). The [earlier PR reconciliation](docs/PR_RECONCILIATION_OCT28.md) records backend integration history; older C drafts are preserved in [the archive](docs/archive/MEMBER_C_REPORT.md).
 
 ---
 

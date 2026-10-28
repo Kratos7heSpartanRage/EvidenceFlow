@@ -1,8 +1,7 @@
-import React from 'react';
-import { ScreeningSuggestion, ScreeningDecision, PicoLabel } from '../../types/api';
-import { Info, User, Bot, AlertTriangle, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
+import { AlertTriangle, Bot, CheckCircle, HelpCircle, Info, User, XCircle } from 'lucide-react';
+import { PicoLabel, ScreeningDecision, ScreeningSuggestion } from '../../types/api';
 
-export function MachineSuggestionBadge({ suggestion }: { suggestion?: ScreeningSuggestion | null }) {
+export function MachineSuggestionBadge({ suggestion }: { suggestion?: ScreeningSuggestion | null; }) {
   if (!suggestion) return null;
 
   const config = {
@@ -23,7 +22,6 @@ export function MachineSuggestionBadge({ suggestion }: { suggestion?: ScreeningS
     }
   }[suggestion.suggestion];
 
-  const Icon = config.icon;
   const strength = suggestion.evidence_json?.strength || 'rule';
   const explanation = suggestion.evidence_json?.explanation || 'Algorithmic suggestion';
 
@@ -62,7 +60,7 @@ export function MachineSuggestionBadge({ suggestion }: { suggestion?: ScreeningS
   );
 }
 
-export function HumanDecisionBadge({ decision }: { decision?: ScreeningDecision | null }) {
+export function HumanDecisionBadge({ decision }: { decision?: ScreeningDecision | null; }) {
   if (!decision) {
     return (
       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-800 border border-slate-700 text-slate-400">
@@ -90,7 +88,6 @@ export function HumanDecisionBadge({ decision }: { decision?: ScreeningDecision 
     }
   }[decision.decision];
 
-  const Icon = config.icon;
   const originLabel = decision.origin !== 'direct' ? `(${decision.origin})` : '';
 
   return (
@@ -122,7 +119,7 @@ export function HumanDecisionBadge({ decision }: { decision?: ScreeningDecision 
   );
 }
 
-export function DedupTierBadge({ tier, score }: { tier: 'auto' | 'uncertain'; score: number }) {
+export function DedupTierBadge({ tier, score }: { tier: 'auto' | 'uncertain'; score: number; }) {
   if (tier === 'auto') {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
@@ -139,8 +136,8 @@ export function DedupTierBadge({ tier, score }: { tier: 'auto' | 'uncertain'; sc
   );
 }
 
-export function PicoBadge({ label }: { label: PicoLabel }) {
-  const styles: Record<PicoLabel, { bg: string; text: string; border: string; name: string }> = {
+export function PicoBadge({ label }: { label: PicoLabel; }) {
+  const styles: Record<PicoLabel, { bg: string; text: string; border: string; name: string; }> = {
     P: { bg: 'bg-pico-p/15', text: 'text-pico-p', border: 'border-pico-p/40', name: 'Population' },
     I: { bg: 'bg-pico-i/15', text: 'text-pico-i', border: 'border-pico-i/40', name: 'Intervention' },
     C: { bg: 'bg-pico-c/15', text: 'text-pico-c', border: 'border-pico-c/40', name: 'Comparator' },

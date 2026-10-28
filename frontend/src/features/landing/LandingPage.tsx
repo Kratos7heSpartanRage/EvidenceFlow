@@ -1,20 +1,10 @@
-import React from 'react';
 import {
   ArrowRight,
-  ShieldCheck,
-  GitMerge,
-  FileSearch,
-  Tag,
-  GitCompare,
-  RotateCcw,
-  Sparkles,
-  Layers,
-  Database,
   CheckCircle2,
-  Lock,
-  FileSpreadsheet,
-  Cpu,
-  BookOpen
+  GitCompare,
+  GitMerge,
+  ShieldCheck,
+  Sparkles
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -77,7 +67,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
           {/* Subtitle */}
           <p className="text-base sm:text-lg text-slate-300/90 leading-relaxed font-normal">
-            Change your literature search as often as you like. EvidenceFlow automatically traces query diffs, merges duplicate groups, and mathematically guarantees that <strong>no reviewer decision is ever lost</strong>.
+            Change your literature search as often as you like. EvidenceFlow automatically traces query diffs, merges duplicate groups, and preserves <strong>reviewer decision history</strong>.
           </p>
 
           {/* Main Hero CTA Button */}
@@ -107,7 +97,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             </div>
             <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800/80 flex items-center justify-center gap-2">
               <CheckCircle2 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-              <span>100% Audit Provenance</span>
+              <span>Audit Provenance</span>
             </div>
           </div>
         </div>
@@ -156,7 +146,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               <p className="text-xs text-slate-400">Steps 0 through 7 designed for the Mini-Rayyan evaluation rubric</p>
             </div>
             <span className="text-[11px] font-mono text-brand-400 font-bold px-2.5 py-1 rounded-lg bg-brand-950/80 border border-brand-800/40">
-              End-to-End Ready
+              Connected Workflow
             </span>
           </div>
 
@@ -203,7 +193,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
         <div className="text-center p-8 rounded-2xl bg-gradient-to-r from-brand-950/60 via-slate-900 to-slate-950 border border-brand-800/40 space-y-4">
           <h2 className="text-xl font-bold text-slate-100">Ready to test the Mini-Rayyan workflow?</h2>
           <p className="text-xs text-slate-400 max-w-lg mx-auto">
-            Explore the prepared Metformin vs. Placebo systematic review protocol, review duplicate pairs, screen abstracts, and test the Level 2 Query Evolution loop.
+            Create a review or open an existing protocol, search the literature, review duplicate pairs, screen abstracts, and compare query versions.
           </p>
           <button
             onClick={onEnterWorkspace}

@@ -15,6 +15,7 @@ class RecordDecisionSummary(BaseModel):
     note: str | None = None
     origin: str = "human"
     created_at: datetime
+    superseded_by_id: str | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -25,6 +26,7 @@ class RecordSuggestionSummary(BaseModel):
     matched_criterion_id: str | None = None
     matched_criterion_label: str | None = None
     algorithm_version: str | None = None
+    evidence_snippets: list[dict[str, Any]] = Field(default_factory=list)
     model_config = ConfigDict(from_attributes=True)
 
 

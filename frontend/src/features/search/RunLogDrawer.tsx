@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { PipelineRun, PipelineStep } from '../../types/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { CheckCircle, Clock, Database, FileSearch, GitMerge, Layers, Loader2, RefreshCw, Tag, X } from 'lucide-react';
+import React, { useEffect } from 'react';
 import { api } from '../../lib/api';
-import { X, CheckCircle, Clock, AlertTriangle, Loader2, Database, GitMerge, FileSearch, Tag, Layers, RefreshCw } from 'lucide-react';
+import type { EntityId } from '../../types/api';
 
 interface RunLogDrawerProps {
-  runId: number | null;
+  runId: EntityId | null;
   isOpen: boolean;
   onClose: () => void;
+  onComplete?: () => void;
 }
 
 const STEP_ICONS: Record<string, React.ElementType> = {
@@ -19,32 +21,18 @@ const STEP_ICONS: Record<string, React.ElementType> = {
   diff: Clock
 };
 
-export function RunLogDrawer({ runId, isOpen, onClose }: RunLogDrawerProps) {
-  const [run, setRun] = useState<PipelineRun | null>(null);
-  const [loading, setLoading] = useState(false);
-
+export function RunLogDrawer({ runId, isOpen, onClose, onComplete }: RunLogDrawerProps) {
+  const client = useQueryClient();
+  const { data: run, error, refetch } = useQuery({
+    queryKey: ['run', runId], queryFn: () => api.getRun(runId!), enabled: !!runId && isOpen,
+    refetchInterval: query => ['queued', 'running'].includes(query.state.data?.status || 'queued') ? 1500 : false,
+  });
   useEffect(() => {
-    if (!runId || !isOpen) return;
-
-    let timer: any;
-    const fetchRun = async () => {
-      try {
-        const data = await api.getRun(runId);
-        setRun(data);
-        if (data.status === 'running') {
-          timer = setTimeout(fetchRun, 1500); // Poll every 1.5s as required by Section 11.3
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    };
-
-    fetchRun();
-
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [runId, isOpen]);
+    if (run?.status === 'completed' || run?.status === 'failed') {
+      void client.invalidateQueries({ queryKey: ['workspace'] });
+      onComplete?.();
+    }
+  }, [run?.status, client, onComplete]);
 
   if (!isOpen || !runId) return null;
 
@@ -56,13 +44,12 @@ export function RunLogDrawer({ runId, isOpen, onClose }: RunLogDrawerProps) {
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono font-bold text-brand-400">PIPELINE RUN #{run?.id || runId}</span>
             <span
-              className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold ${
-                run?.status === 'completed'
+              className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold ${run?.status === 'completed'
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                   : run?.status === 'running'
-                  ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30'
-                  : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-              }`}
+                    ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30'
+                    : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                }`}
             >
               {run?.status || 'loading'}
             </span>
@@ -72,6 +59,7 @@ export function RunLogDrawer({ runId, isOpen, onClose }: RunLogDrawerProps) {
           </p>
         </div>
         <button
+          aria-label="Close run log"
           onClick={onClose}
           className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
         >
@@ -79,6 +67,8 @@ export function RunLogDrawer({ runId, isOpen, onClose }: RunLogDrawerProps) {
         </button>
       </div>
 
+      {error && <div role="alert" className="p-4 text-rose-300">{error.message}<button className="ml-3 underline" onClick={() => refetch()}>Retry</button></div>}
+      {run?.error && <p role="alert" className="p-4 text-rose-300">{run.error}</p>}
       {/* Steps List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
         {run?.steps.map((step, idx) => {
@@ -89,13 +79,12 @@ export function RunLogDrawer({ runId, isOpen, onClose }: RunLogDrawerProps) {
           return (
             <div
               key={step.id || idx}
-              className={`p-3 rounded-lg border transition ${
-                isRunning
+              className={`p-3 rounded-lg border transition ${isRunning
                   ? 'bg-brand-950/30 border-brand-500/50 shadow-md shadow-brand-950/40'
                   : isDone
-                  ? 'bg-slate-950/40 border-slate-800/80'
-                  : 'bg-slate-950/20 border-slate-900 opacity-60'
-              }`}
+                    ? 'bg-slate-950/40 border-slate-800/80'
+                    : 'bg-slate-950/20 border-slate-900 opacity-60'
+                }`}
             >
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
@@ -119,7 +108,7 @@ export function RunLogDrawer({ runId, isOpen, onClose }: RunLogDrawerProps) {
                       <span>done</span>
                     </span>
                   )}
-                  {step.status === 'pending' && (
+                  {['pending', 'queued'].includes(step.status) && (
                     <span className="text-[10px] text-slate-500 font-mono">pending</span>
                   )}
                 </div>

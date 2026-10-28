@@ -1,3 +1,6 @@
+// View models used by the workspace. Backend wire contracts are namespaced below.
+export type EntityId = string | number;
+
 export interface ReviewStats {
   total_records: number;
   unique_groups: number;
@@ -10,20 +13,20 @@ export interface ReviewStats {
 }
 /**
  * EvidenceFlow API TypeScript Contracts
- * Fully mirrors backend models and specifications in docs/API_CONTRACTS.md
+ * Workspace view models mapped from the wire contracts in backend.ts.
  */
 
 export type SourceType = 'europe_pmc' | 'pubmed' | 'snapshot';
 
 export type DecisionType = 'include' | 'exclude' | 'maybe';
 
-export type DecisionOrigin = 'direct' | 'group_applied' | 'inherited' | 'conflict_resolution';
+export type DecisionOrigin = 'human' | 'direct' | 'group_applied' | 'inherited' | 'conflict_resolution';
 
 export type PairDecisionType = 'confirm' | 'reject';
 
 export type DedupTier = 'auto' | 'uncertain';
 
-export type DedupMethod = 'doi' | 'pmid' | 'title_year_author' | 'fuzzy';
+export type DedupMethod = 'unspecified' | 'doi' | 'pmid' | 'title_year_author' | 'fuzzy';
 
 export type PicoLabel = 'P' | 'I' | 'C' | 'O';
 
@@ -33,41 +36,43 @@ export type ConflictType = 'group_decision_conflict' | 'pair_override_bypassed' 
 
 export type ConflictStatus = 'open' | 'resolved' | 'obsolete';
 
-export type RunStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type RunStatus = 'queued' | 'pending' | 'running' | 'completed' | 'failed';
 
 export type StepType = 'fetch' | 'store' | 'dedup' | 'reconcile' | 'screen' | 'pico' | 'diff';
 
 export type TriggerType = 'import' | 'criteria_change' | 'pair_decision' | 'revert' | 'workspace_change';
 
 export interface Review {
-  id: number;
+  id: EntityId;
   title: string;
   question: string;
   population: string;
   intervention: string;
   comparator: string;
   outcome: string;
-  active_criteria_version_id?: number | null;
+  active_criteria_version_id?: EntityId | null;
   stats?: ReviewStats;
   created_at: string;
   updated_at: string;
 }
 
 export interface Criterion {
-  id: number;
-  criteria_version_id: number;
+  id: EntityId;
+  criteria_version_id: EntityId;
   kind: 'include' | 'exclude';
   code: string;
   label: string;
   reason: string;
   detector: 'metadata' | 'rule' | 'metadata_then_rule' | 'manual_only';
-  params_json?: Record<string, any>;
+  params_json?: Record<string, unknown>;
   is_active: boolean;
+  detector_rule?: string | null;
+  field_target?: string | null;
 }
 
 export interface CriteriaVersion {
-  id: number;
-  review_id: number;
+  id: EntityId;
+  review_id: EntityId;
   version_no: number;
   created_at: string;
   created_by: string;
@@ -81,25 +86,25 @@ export interface QuerySpec {
   source: SourceType;
   options?: {
     synonym?: boolean;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   cap?: number;
 }
 
 export interface QueryVersion {
-  id: number;
-  review_id: number;
-  lineage_root_id?: number;
-  parent_id?: number | null;
+  id: EntityId;
+  review_id: EntityId;
+  lineage_root_id?: EntityId;
+  parent_id?: EntityId | null;
   version_no: number;
   label: string;
   source?: SourceType;
   expression?: string;
   date_from?: string;
   date_to?: string;
-  options_json?: Record<string, any>;
+  options_json?: Record<string, unknown>;
   import_cap: number;
-  status: 'draft' | 'previewed' | 'importing' | 'imported' | 'failed';
+  status: 'draft' | 'previewed' | 'approved' | 'importing' | 'imported' | 'failed';
   hit_count?: number | null;
   imported_count?: number | null;
   created_at: string;
@@ -108,8 +113,8 @@ export interface QueryVersion {
 }
 
 export interface LiteratureRecord {
-  id: number;
-  review_id: number;
+  id: EntityId;
+  review_id: EntityId;
   source: SourceType;
   source_record_id: string;
   doi_norm?: string | null;
@@ -129,7 +134,7 @@ export interface LiteratureRecord {
   language?: string | null;
   pub_types_json: string[];
   mesh_json: string[];
-  raw_json?: Record<string, any>;
+  raw_json?: Record<string, unknown>;
   content_hash: string;
   created_at: string;
   updated_at: string;
@@ -141,91 +146,92 @@ export interface LiteratureRecord {
   suggestion?: ScreeningSuggestion | null;
   query_versions?: number[];
   pico_annotations?: PicoAnnotation[];
+  decision_history?: ScreeningDecision[];
   is_hidden?: boolean;
   is_stale?: boolean;
 }
 
 export interface DuplicatePair {
-  id: number;
-  review_id: number;
-  record_a_id: number;
-  record_b_id: number;
+  id: EntityId;
+  review_id: EntityId;
+  record_a_id: EntityId;
+  record_b_id: EntityId;
   method: DedupMethod;
   score: number;
   tier: DedupTier;
   matched_fields_json: string[];
   conflicting_fields_json: string[];
   algo_version: string;
-  created_run_id: number;
+  created_run_id: EntityId;
   record_a?: LiteratureRecord;
   record_b?: LiteratureRecord;
   decision?: PairDecision;
 }
 
 export interface PairDecision {
-  id: number;
-  review_id: number;
-  record_a_id: number;
-  record_b_id: number;
+  id: EntityId;
+  review_id: EntityId;
+  record_a_id: EntityId;
+  record_b_id: EntityId;
   decision: PairDecisionType;
   note?: string | null;
   reviewer: string;
   created_at: string;
-  superseded_by_id?: number | null;
+  superseded_by_id?: EntityId | null;
 }
 
 export interface RepresentativePin {
-  review_id: number;
-  record_id: number;
+  review_id: EntityId;
+  record_id: EntityId;
   pinned_at: string;
   reviewer: string;
 }
 
 export interface ScreeningSuggestion {
-  id: number;
-  record_id: number;
-  criteria_version_id: number;
+  id: EntityId;
+  record_id: EntityId;
+  criteria_version_id: EntityId;
   content_hash: string;
   algo_version: string;
   suggestion: DecisionType;
-  criterion_id?: number | null;
+  criterion_id?: EntityId | null;
   criterion?: Criterion;
   evidence_json: {
     rule_hits?: string[];
-    metadata_fields_used?: Record<string, any>;
-    strength?: 'strong' | 'weak';
+    metadata_fields_used?: string[];
+    strength?: 'strong' | 'weak' | 'none';
     explanation?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   created_at: string;
 }
 
 export interface ScreeningDecision {
-  id: number;
-  review_id: number;
-  record_id: number;
+  id: EntityId;
+  review_id: EntityId;
+  record_id: EntityId;
   decision: DecisionType;
-  criterion_id?: number | null;
+  criterion_id?: EntityId | null;
   criterion?: Criterion;
   reason_text?: string | null;
   note?: string | null;
   reviewer: string;
   origin: DecisionOrigin;
-  criteria_version_id: number;
+  criteria_version_id: EntityId;
   created_at: string;
-  superseded_by_id?: number | null;
+  superseded_by_id?: EntityId | null;
 }
 
 export interface PicoAnnotation {
-  id: number;
-  record_id: number;
+  id: EntityId;
+  record_id: EntityId;
   label: PicoLabel;
   text: string;
   start_char: number;
   end_char?: number | null;
   origin: 'machine' | 'human';
   status: PicoStatus;
-  supersedes_id?: number | null;
+  supersedes_id?: EntityId | null;
   content_hash?: string;
   algo_version?: string;
   reviewer?: string;
@@ -233,54 +239,54 @@ export interface PicoAnnotation {
 }
 
 export interface Conflict {
-  id: number;
-  review_id: number;
+  id: EntityId;
+  review_id: EntityId;
   type: ConflictType;
   fingerprint: string;
-  record_ids_json: number[];
+  record_ids_json: EntityId[];
   details_json: {
     conflicting_decisions?: {
-      record_id: number;
+      record_id: EntityId;
       decision: DecisionType;
       reason?: string;
       reviewer: string;
       time: string;
     }[];
     bridging_pairs?: {
-      pair_id: number;
+      pair_id: EntityId;
       score: number;
       method: string;
       matched_fields: string[];
     }[];
     explanation?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   status: ConflictStatus;
-  created_run_id: number;
+  created_run_id: EntityId;
   resolved_at?: string | null;
-  resolution_json?: Record<string, any> | null;
+  resolution_json?: Record<string, unknown> | null;
   reviewer?: string | null;
   records?: LiteratureRecord[];
 }
 
 export interface PipelineStep {
-  id: number;
-  run_id: number;
+  id: EntityId;
+  run_id: EntityId;
   step: StepType;
   status: RunStatus;
   started_at?: string | null;
   finished_at?: string | null;
-  input_summary_json?: Record<string, any>;
-  output_summary_json?: Record<string, any>;
+  input_summary_json?: Record<string, unknown>;
+  output_summary_json?: Record<string, unknown>;
   error?: string | null;
 }
 
 export interface PipelineRun {
-  id: number;
-  review_id: number;
-  query_version_id?: number | null;
+  id: EntityId;
+  review_id: EntityId;
+  query_version_id?: EntityId | null;
   trigger: TriggerType;
-  active_version_ids_json: number[];
+  active_version_ids_json: EntityId[];
   status: RunStatus;
   started_at: string;
   finished_at?: string | null;
@@ -289,8 +295,8 @@ export interface PipelineRun {
 }
 
 export interface DiffSummary {
-  from_version_id: number;
-  to_version_id: number;
+  from_version_id: EntityId;
+  to_version_id: EntityId;
   added_count?: number;
   records_added?: number;
   removed_count?: number;
@@ -308,6 +314,7 @@ export interface DiffSummary {
   conflicts_opened_count?: number;
   conflicts_opened?: number;
   needing_screening_count?: number;
+  metrics_available?: boolean;
   needing_screening?: number;
   added_records?: LiteratureRecord[];
   removed_records?: LiteratureRecord[];
@@ -319,22 +326,23 @@ export interface DiffSummary {
 }
 
 export interface AuditEvent {
-  id: number;
-  review_id: number;
+  id: EntityId;
+  review_id: EntityId;
   actor: string;
   action: string;
   entity_type: string;
-  entity_id: number;
-  before_json?: Record<string, any> | null;
-  after_json?: Record<string, any> | null;
-  run_id?: number | null;
+  entity_id: EntityId;
+  before_json?: Record<string, unknown> | null;
+  after_json?: Record<string, unknown> | null;
+  run_id?: EntityId | null;
   created_at: string;
 }
 
 export interface PreviewResponse {
-  query_version_id: number;
+  query_version_id: EntityId;
   hit_count: number;
-  sample_records: any[];
+  warnings?: string[];
+  sample_records: import('./backend').RecordIn[];
   source?: SourceType;
   expression?: string;
 }
@@ -342,16 +350,16 @@ export interface PreviewResponse {
 export interface ResolveConflictRequest {
   action: 'apply_decision' | 'split_duplicates' | 'keep_maybe';
   decision?: DecisionType;
-  criterion_id?: number;
+  criterion_id?: EntityId;
   reason_text?: string | null;
   note?: string | null;
   reviewer: string;
 }
 
 export interface ScreeningSubmission {
-  record_id: number;
+  record_id: EntityId;
   decision: DecisionType;
-  criterion_id?: number | null;
+  criterion_id?: EntityId | null;
   reason_text?: string | null;
   note?: string | null;
   reviewer: string;
