@@ -180,7 +180,7 @@ export function ScreeningQueue() {
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Filter title or abstract..."
+              placeholder="Search title, abstract, or PMID..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
 

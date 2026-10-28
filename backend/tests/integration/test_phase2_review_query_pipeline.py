@@ -213,6 +213,11 @@ def test_query_versioning_preview_import_and_diff(client):
     # Verify Review counts updated
     rev_after_q1 = client.get(f"/api/reviews/{review_id}").json()
     assert rev_after_q1["counts"]["total_records"] == 2
+    search_by_source_id = client.get(f"/api/reviews/{review_id}/records?q=PMC1001")
+    assert search_by_source_id.status_code == 200
+    assert [item["source_record_id"] for item in search_by_source_id.json()["items"]] == [
+        "PMC1001"
+    ]
 
     # 5. Formulate Query Version 2 evolving from Query 1 (Narrowed search)
     q2_payload = {

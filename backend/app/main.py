@@ -1,24 +1,28 @@
 """EvidenceFlow FastAPI application factory and entry point."""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.conflicts import router as conflicts_router
 from app.api.dedup import router as dedup_router
 from app.api.export import router as export_router
 from app.api.health import router as health_router
+from app.api.innovations import router as innovations_router
 from app.api.pico import router as pico_router
 from app.api.queries import router as queries_router
 from app.api.records import router as records_router
 from app.api.reviews import router as reviews_router
 from app.api.runs import router as runs_router
 from app.api.screening import router as screening_router
+from app.core.config import settings
 from app.core.database import SessionLocal, utc_now
 from app.core.errors import AppError
 from app.models.audit import PipelineRun
@@ -55,7 +59,11 @@ def create_app() -> FastAPI:
     # CORS configuration
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "*"],
+        allow_origins=(
+            ["http://localhost:5173", "http://127.0.0.1:5173"]
+            if settings.ENVIRONMENT != "production"
+            else []
+        ),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -106,6 +114,12 @@ def create_app() -> FastAPI:
     app.include_router(pico_router, prefix="/api")
     app.include_router(conflicts_router, prefix="/api")
     app.include_router(export_router, prefix="/api")
+    app.include_router(innovations_router, prefix="/api")
+
+    # The production container serves the built UI and API from one origin.
+    frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+    if settings.ENVIRONMENT == "production" and frontend_dist.is_dir():
+        app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
 
     return app
 
