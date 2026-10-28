@@ -90,12 +90,18 @@ class RecordService:
                     & (ScreeningDecision.superseded_by_id.is_(None)),
                 ).filter(ScreeningDecision.decision == decision)
 
-        query = query.distinct()
-        total_count = query.count()
+        # PostgreSQL cannot apply DISTINCT to a full Record row because some
+        # payload columns use JSON, which has no equality operator. Deduplicate
+        # record IDs first, then load the selected records for this page.
+        matching_ids = query.with_entities(Record.id).distinct()
+        total_count = matching_ids.count()
+        matching_ids_subquery = matching_ids.subquery()
 
         # Eager load relationships via selectinload to prevent Cartesian multiplication
         records = (
-            query.options(
+            self.db.query(Record)
+            .join(matching_ids_subquery, matching_ids_subquery.c.id == Record.id)
+            .options(
                 selectinload(Record.decisions),
                 selectinload(Record.suggestions),
             )
