@@ -30,7 +30,8 @@ export function SearchBuilder({ onViewScreening }: { onViewScreening?: () => voi
   const [activeRun, setActiveRun] = useState<{ queryId: EntityId; runId: EntityId; } | null>(() => {
     try { return JSON.parse(localStorage.getItem(`evidenceflow_run_${reviewId}`) || 'null'); } catch { return null; }
   });
-  const activeRunId = activeRun?.queryId === selectedQuery?.id ? activeRun.runId : null;
+  const activeRunId = activeRun && selectedQuery && activeRun.queryId === selectedQuery.id
+    ? activeRun.runId : null;
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const handleInsertOperator = (op: string) => {

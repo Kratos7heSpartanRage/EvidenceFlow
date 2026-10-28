@@ -22,6 +22,7 @@ describe('Workspace connectivity', () => {
         const data = JSON.parse(String(options.body)); reviews = [review('created-uuid', data.title)]; return Response.json(reviews[0]);
       }
       if (url === '/api/reviews') return Response.json(reviews);
+      if (url === '/api/reviews/created-uuid/queries') return Response.json([]);
       if (url.includes('duplicate-pairs')) return Response.json([]);
       if (url === '/api/reviews/created-uuid') return Response.json(reviews[0]);
       throw new Error(`Unexpected request: ${url}`);
@@ -37,6 +38,8 @@ describe('Workspace connectivity', () => {
     expect(screen.getByText('0%')).toBeInTheDocument();
     expect(localStorage.getItem('evidenceflow_review')).toBe('created-uuid');
     expect(fetcher.mock.calls.some(([url]) => url.includes('/reviews/1'))).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Search Literature' }));
+    expect(await screen.findByRole('heading', { name: 'Literature Database Query Builder' })).toBeInTheDocument();
   });
   it('switches to a different stored review without reusing the first review data', async () => {
     const first = review('first-uuid', 'First protocol'), second = review('second-uuid', 'Second protocol');
